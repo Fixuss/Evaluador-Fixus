@@ -14,23 +14,57 @@ function Toast({ msg, onDone }) {
 // ── FORMULARIO ─────────────────────────────────────────────────────────────
 const FORM_EMPTY = {
   razon:'', cuit:'', sector:'', destino:'',
-  antiguedad:0, fin_sol:0,
-  ventas_ant:0, ebitda_ant:0, deuda_ant:0,
-  ventas:0, cmv:0, gastos_op:0, amort:0, res_fin:0, imp:0,
-  act_co:0, act_nco:0, caja:0, pas_co:0, pas_nco:0, pn:0,
-  dcp:0, dlp:0,
-  m1:0, m2:0, m3:0, m4:0, m5:0, m6:0,
+  antiguedad:'', fin_sol:'',
+  ventas_ant:'', ebitda_ant:'', deuda_ant:'',
+  ventas:'', cmv:'', gastos_op:'', amort:'', res_fin:'', imp:'',
+  act_co:'', act_nco:'', caja:'', pas_co:'', pas_nco:'', pn:'',
+  dcp:'', dlp:'',
+  m1:'', m2:'', m3:'', m4:'', m5:'', m6:'',
+}
+
+// Convierte cualquier valor del form a número (vacío/NaN → 0) para los cálculos
+const toNum = v => {
+  if (v === '' || v === null || v === undefined) return 0
+  const n = typeof v === 'number' ? v : parseFloat(v)
+  return isNaN(n) ? 0 : n
 }
 
 function Campo({ label, id, form, setForm, type='number', span=1, placeholder='' }) {
+  const [focused, setFocused] = useState(false)
+  const isNum = type === 'number'
+  const raw = form[id]
+
+  const display = () => {
+    if (!isNum) return raw ?? ''
+    if (raw === '' || raw === null || raw === undefined) return ''
+    if (focused) return String(raw)  // edición → dígitos crudos
+    return Number(raw).toLocaleString('es-AR', { maximumFractionDigits: 0 })
+  }
+
   return (
     <div className="field" style={span > 1 ? { gridColumn: `span ${span}` } : {}}>
       <label htmlFor={id}>{label}</label>
       <input
-        id={id} type={type}
-        value={form[id] ?? ''}
+        id={id}
+        type={isNum ? 'text' : type}
+        inputMode={isNum ? 'numeric' : undefined}
+        value={display()}
         placeholder={placeholder}
-        onChange={e => setForm(f => ({ ...f, [id]: type === 'number' ? (parseFloat(e.target.value) || 0) : e.target.value }))}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        onChange={e => {
+          const v = e.target.value
+          setForm(f => {
+            if (!isNum) return { ...f, [id]: v }
+            // Acepta dígitos y opcional signo menos al inicio
+            const cleaned = v.replace(/[^\d-]/g, '')
+            const isNeg = cleaned.startsWith('-')
+            const digits = cleaned.replace(/-/g, '')
+            if (digits === '') return { ...f, [id]: '' }
+            const n = parseInt(digits, 10)
+            return { ...f, [id]: isNeg ? -n : n }
+          })
+        }}
       />
     </div>
   )
@@ -351,10 +385,14 @@ export default function App() {
 
   const analizar = () => {
     if (!form.razon || !form.ventas) { showToast('Completá al menos la Razón Social y las Ventas.'); return }
-    const meses_post = [form.m1, form.m2, form.m3, form.m4, form.m5, form.m6]
-    const r = calcularRatios({ ...form, meses_post })
-    const elig = evalElegibilidad(r, form.antiguedad, form.fin_sol, criterios)
-    setResultado({ r, elig, form: { ...form } })
+    // Sanitizar: convertir campos numéricos vacíos a 0 antes de calcular
+    const numKeys = ['antiguedad','fin_sol','ventas_ant','ebitda_ant','deuda_ant','ventas','cmv','gastos_op','amort','res_fin','imp','act_co','act_nco','caja','pas_co','pas_nco','pn','dcp','dlp','m1','m2','m3','m4','m5','m6']
+    const formNum = { ...form }
+    numKeys.forEach(k => { formNum[k] = toNum(form[k]) })
+    const meses_post = [formNum.m1, formNum.m2, formNum.m3, formNum.m4, formNum.m5, formNum.m6]
+    const r = calcularRatios({ ...formNum, meses_post })
+    const elig = evalElegibilidad(r, formNum.antiguedad, formNum.fin_sol, criterios)
+    setResultado({ r, elig, form: { ...formNum, razon: form.razon, cuit: form.cuit, sector: form.sector, destino: form.destino } })
     setTab('resultado')
   }
 
