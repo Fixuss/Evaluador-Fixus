@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import Head from 'next/head'
-import '../styles/globals.css'
 import { calcularRatios, evalElegibilidad, CRITERIOS_DEFAULT } from '../lib/financial'
 
 // ── helpers ────────────────────────────────────────────────────────────────
