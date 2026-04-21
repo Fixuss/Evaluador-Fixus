@@ -482,7 +482,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="card section-gap card--neutral">
+              <div className="card section-gap card--teal">
                 <div className="card-header"><div className="section-dot" /><span className="card-title">Ejercicio anterior (datos comparativos — $K)</span></div>
                 <div className="card-body">
                   <div className="form-grid-3">
@@ -493,7 +493,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="card section-gap">
+              <div className="card section-gap card--indigo">
                 <div className="card-header"><div className="section-dot" /><span className="card-title">Último ejercicio — estado de resultados ($K)</span></div>
                 <div className="card-body">
                   <div className="form-grid-3">
