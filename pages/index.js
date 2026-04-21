@@ -150,8 +150,8 @@ function PanelResultado({ resultado, onAgregar, loading }) {
       </div>
 
       {/* Narrativo */}
-      <div className="card section-gap">
-        <div className="card-header"><div className="section-dot" style={{background:'#7C3AED'}} /><span className="card-title">Análisis narrativo</span></div>
+      <div className="card section-gap card--violet">
+        <div className="card-header"><div className="section-dot" /><span className="card-title">Análisis narrativo</span></div>
         <div className="card-body">
           <div className="narrative-box">
             {form.razon} ({form.sector || 'sin sector'}) — {form.antiguedad} años de antigüedad.{' '}
@@ -482,8 +482,8 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="card section-gap">
-                <div className="card-header"><div className="section-dot" style={{background:'#64748B'}} /><span className="card-title">Ejercicio anterior (datos comparativos — $K)</span></div>
+              <div className="card section-gap card--neutral">
+                <div className="card-header"><div className="section-dot" /><span className="card-title">Ejercicio anterior (datos comparativos — $K)</span></div>
                 <div className="card-body">
                   <div className="form-grid-3">
                     <Campo label="Ventas netas ej. anterior" id="ventas_ant" form={form} setForm={setForm} />
@@ -507,8 +507,8 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="card section-gap">
-                <div className="card-header"><div className="section-dot" style={{background:'#059669'}} /><span className="card-title">Último ejercicio — balance general ($K)</span></div>
+              <div className="card section-gap card--green">
+                <div className="card-header"><div className="section-dot" /><span className="card-title">Último ejercicio — balance general ($K)</span></div>
                 <div className="card-body">
                   <div className="form-grid-3">
                     <Campo label="Activo corriente" id="act_co" form={form} setForm={setForm} />
@@ -523,8 +523,8 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="card section-gap">
-                <div className="card-header"><div className="section-dot" style={{background:'#D97706'}} /><span className="card-title">Ventas mensuales post-balance ($K) — Mes 1 = más antiguo</span></div>
+              <div className="card section-gap card--amber">
+                <div className="card-header"><div className="section-dot" /><span className="card-title">Ventas mensuales post-balance ($K) — Mes 1 = más antiguo</span></div>
                 <div className="card-body">
                   <div className="form-grid-6">
                     {['m1','m2','m3','m4','m5','m6'].map((id,i) => (

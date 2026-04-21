@@ -150,11 +150,37 @@ body {
 .card-header {
   padding: 16px 20px;
   border-bottom: 1px solid var(--gray-100);
-  background: linear-gradient(180deg, #fafbfd 0%, #ffffff 100%);
+  background: linear-gradient(180deg, rgba(97,126,202,.10) 0%, #ffffff 100%);
   display: flex;
   align-items: center;
   gap: 10px;
+  position: relative;
 }
+.card-header::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--blue) 0%, rgba(97,126,202,.3) 40%, transparent 85%);
+}
+
+/* Variantes por sección — tintado sutil del header + punto + franja superior */
+.card--neutral .card-header { background: linear-gradient(180deg, rgba(100,116,139,.10) 0%, #ffffff 100%); }
+.card--neutral .card-header::after { background: linear-gradient(90deg, #64748B 0%, rgba(100,116,139,.3) 40%, transparent 85%); }
+.card--neutral .section-dot { background: #64748B; box-shadow: 0 0 0 4px rgba(100,116,139,.14); }
+
+.card--green .card-header { background: linear-gradient(180deg, rgba(5,150,105,.10) 0%, #ffffff 100%); }
+.card--green .card-header::after { background: linear-gradient(90deg, #059669 0%, rgba(5,150,105,.3) 40%, transparent 85%); }
+.card--green .section-dot { background: #059669; box-shadow: 0 0 0 4px rgba(5,150,105,.14); }
+
+.card--amber .card-header { background: linear-gradient(180deg, rgba(217,119,6,.10) 0%, #ffffff 100%); }
+.card--amber .card-header::after { background: linear-gradient(90deg, #D97706 0%, rgba(217,119,6,.3) 40%, transparent 85%); }
+.card--amber .section-dot { background: #D97706; box-shadow: 0 0 0 4px rgba(217,119,6,.14); }
+
+.card--violet .card-header { background: linear-gradient(180deg, rgba(124,58,237,.10) 0%, #ffffff 100%); }
+.card--violet .card-header::after { background: linear-gradient(90deg, #7C3AED 0%, rgba(124,58,237,.3) 40%, transparent 85%); }
+.card--violet .section-dot { background: #7C3AED; box-shadow: 0 0 0 4px rgba(124,58,237,.14); }
 
 .card-title {
   font-size: 12px;
