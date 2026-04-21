@@ -150,7 +150,7 @@ body {
 .card-header {
   padding: 16px 20px;
   border-bottom: 1px solid var(--gray-100);
-  background: linear-gradient(180deg, rgba(97,126,202,.14) 0%, #ffffff 100%);
+  background: linear-gradient(180deg, rgba(97,126,202,.09) 0%, #ffffff 100%);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -166,23 +166,23 @@ body {
 }
 
 /* Variantes por sección — tintado + punto + franja superior */
-.card--teal .card-header { background: linear-gradient(180deg, rgba(8,145,178,.14) 0%, #ffffff 100%); }
+.card--teal .card-header { background: linear-gradient(180deg, rgba(8,145,178,.09) 0%, #ffffff 100%); }
 .card--teal .card-header::after { background: linear-gradient(90deg, #0891B2 0%, rgba(8,145,178,.35) 40%, transparent 85%); }
 .card--teal .section-dot { background: #0891B2; box-shadow: 0 0 0 4px rgba(8,145,178,.18); }
 
-.card--indigo .card-header { background: linear-gradient(180deg, rgba(99,102,241,.14) 0%, #ffffff 100%); }
+.card--indigo .card-header { background: linear-gradient(180deg, rgba(99,102,241,.09) 0%, #ffffff 100%); }
 .card--indigo .card-header::after { background: linear-gradient(90deg, #6366F1 0%, rgba(99,102,241,.35) 40%, transparent 85%); }
 .card--indigo .section-dot { background: #6366F1; box-shadow: 0 0 0 4px rgba(99,102,241,.18); }
 
-.card--green .card-header { background: linear-gradient(180deg, rgba(5,150,105,.14) 0%, #ffffff 100%); }
+.card--green .card-header { background: linear-gradient(180deg, rgba(5,150,105,.09) 0%, #ffffff 100%); }
 .card--green .card-header::after { background: linear-gradient(90deg, #059669 0%, rgba(5,150,105,.35) 40%, transparent 85%); }
 .card--green .section-dot { background: #059669; box-shadow: 0 0 0 4px rgba(5,150,105,.18); }
 
-.card--amber .card-header { background: linear-gradient(180deg, rgba(217,119,6,.14) 0%, #ffffff 100%); }
+.card--amber .card-header { background: linear-gradient(180deg, rgba(217,119,6,.09) 0%, #ffffff 100%); }
 .card--amber .card-header::after { background: linear-gradient(90deg, #D97706 0%, rgba(217,119,6,.35) 40%, transparent 85%); }
 .card--amber .section-dot { background: #D97706; box-shadow: 0 0 0 4px rgba(217,119,6,.18); }
 
-.card--violet .card-header { background: linear-gradient(180deg, rgba(124,58,237,.14) 0%, #ffffff 100%); }
+.card--violet .card-header { background: linear-gradient(180deg, rgba(124,58,237,.09) 0%, #ffffff 100%); }
 .card--violet .card-header::after { background: linear-gradient(90deg, #7C3AED 0%, rgba(124,58,237,.35) 40%, transparent 85%); }
 .card--violet .section-dot { background: #7C3AED; box-shadow: 0 0 0 4px rgba(124,58,237,.18); }
 
