@@ -190,21 +190,21 @@ function PanelCriterios({ criterios, setCriterios, onSave, saving }) {
       </div>
       {type === 'bool' ? (
         <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer' }}>
-          <input type="checkbox" checked={F[k]} onChange={e => set(k, e.target.checked)} style={{ width:16, height:16, accentColor:'#1D4ED8' }} />
+          <input type="checkbox" checked={F[k]} onChange={e => set(k, e.target.checked)} style={{ width:16, height:16, accentColor:'#617ECA' }} />
           <span style={{ fontSize:12, color:'#64748B' }}>{F[k] ? 'Requerido' : 'Opcional'}</span>
         </label>
       ) : (
         <input
           type="number" step={step} value={F[k]}
           onChange={e => set(k, parseFloat(e.target.value) || 0)}
-          style={{ width:90, padding:'6px 10px', fontSize:13, fontWeight:600, color:'#1D4ED8',
-            border:'1px solid #BFDBFE', borderRadius:8, background:'#EFF6FF', textAlign:'center', outline:'none' }}
+          style={{ width:90, padding:'6px 10px', fontSize:13, fontWeight:600, color:'#617ECA',
+            border:'1px solid #c9d2ee', borderRadius:8, background:'#eef1fa', textAlign:'center', outline:'none' }}
         />
       )}
     </div>
   )
 
-  const Section = ({ title, color='#1D4ED8', children }) => (
+  const Section = ({ title, color='#617ECA', children }) => (
     <div className="card section-gap">
       <div className="card-header">
         <div className="section-dot" style={{ background: color }} />
@@ -216,7 +216,7 @@ function PanelCriterios({ criterios, setCriterios, onSave, saving }) {
 
   return (
     <div>
-      <Section title="Tendencia de ventas" color="#1D4ED8">
+      <Section title="Tendencia de ventas" color="#617ECA">
         <Row k="caida_max" label="Caída máxima tolerable entre ejercicios (%)" note="Ej: 10 = acepta hasta −10% interanual" />
         <Row k="tend_pct" label="Meses en alza mínimos post-balance (%)" note="Ej: 60 = al menos 60% de los meses deben crecer" />
       </Section>
@@ -433,17 +433,16 @@ export default function App() {
   return (
     <>
       <Head>
-        <title>Fixus — Evaluador Crediticio</title>
+        <title>Fixus — Consultora para PyMEs</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💼</text></svg>" />
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='16' fill='%23162937'/><rect x='62' y='20' width='18' height='18' fill='%23617ECA'/><text x='50' y='72' text-anchor='middle' font-family='DM Sans,sans-serif' font-size='52' font-weight='700' fill='%23ffffff'>F</text></svg>" />
       </Head>
 
       <div className="app-shell">
         {/* Sidebar */}
         <aside className="sidebar">
           <div className="sidebar-logo">
-            <div className="wordmark">Fixus</div>
-            <div className="tagline">Evaluador Crediticio</div>
+            <img src="/logo.svg" alt="Fixus — Consultora para PyMEs" className="logo-img" />
           </div>
           <nav className="sidebar-nav">
             {NAV.map(n => (

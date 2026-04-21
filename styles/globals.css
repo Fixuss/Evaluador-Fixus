@@ -1,11 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
 
 :root {
-  --navy: #0F1E38;
-  --navy-mid: #1B2E50;
-  --blue: #1D4ED8;
-  --blue-light: #3B82F6;
-  --blue-bg: #EFF6FF;
+  /* ── Fixus brand palette ─────────────────────────────────────────── */
+  --navy: #162937;          /* sidebar, header, footer */
+  --navy-mid: #223a4d;      /* hover states sobre navy */
+  --blue: #617ECA;          /* primario — botones, énfasis */
+  --blue-light: #8a9fd6;    /* hover / focus ring */
+  --blue-bg: #eef1fa;       /* fondos suaves del primario */
+  --accent-white: #ffffff;  /* acento sobre fondo oscuro */
+  /* ── Semáforo crediticio (no se modifica: convención universal) ──── */
   --green: #059669;
   --green-bg: #ECFDF5;
   --green-border: #A7F3D0;
@@ -56,23 +59,20 @@ body {
 }
 
 .sidebar-logo {
-  padding: 28px 24px 20px;
+  padding: 16px 12px 12px;
   border-bottom: 1px solid rgba(255,255,255,.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.sidebar-logo .wordmark {
-  font-family: 'DM Serif Display', serif;
-  font-size: 20px;
-  color: #fff;
-  letter-spacing: -.3px;
-}
-
-.sidebar-logo .tagline {
-  font-size: 10px;
-  color: rgba(255,255,255,.4);
-  text-transform: uppercase;
-  letter-spacing: .08em;
-  margin-top: 3px;
+.sidebar-logo .logo-img {
+  width: 100%;
+  max-width: 200px;
+  height: auto;
+  display: block;
+  /* El SVG ya viene en versión monocromática blanca con fondo transparente,
+     lista para sidebar oscuro. Sin filtros. */
 }
 
 .sidebar-nav { padding: 16px 12px; flex: 1; }
@@ -196,7 +196,7 @@ body {
 }
 
 .btn-primary { background: var(--blue); color: #fff; }
-.btn-primary:hover { background: #1e40af; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(29,78,216,.3); }
+.btn-primary:hover { background: #4a68b8; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(97,126,202,.35); }
 
 .btn-success { background: var(--green); color: #fff; }
 .btn-success:hover { background: #047857; transform: translateY(-1px); }
@@ -275,7 +275,7 @@ body {
   letter-spacing: .04em;
   flex-shrink: 0;
 }
-.cat-tendencia { background: #DBEAFE; color: #1D4ED8; }
+.cat-tendencia { background: var(--blue-bg); color: var(--blue); }
 .cat-deuda     { background: #FEF3C7; color: #92400E; }
 .cat-solvencia { background: #ECFDF5; color: #065F46; }
 .cat-rentabilidad { background: #F3E8FF; color: #6B21A8; }
