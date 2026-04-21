@@ -144,7 +144,11 @@ body {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   overflow: hidden;
-  transition: box-shadow .25s ease, transform .25s ease;
+  transition: box-shadow .25s ease, transform .25s ease, border-color .25s ease;
+}
+.card:hover {
+  box-shadow: var(--shadow-hover);
+  border-color: rgba(21,41,55,.10);
 }
 
 .card-header {
@@ -218,13 +222,18 @@ body {
   border-radius: 8px;
   background: var(--gray-50);
   color: var(--gray-900);
-  transition: border-color .15s, box-shadow .15s;
+  transition: border-color .15s, box-shadow .15s, background .15s;
   outline: none;
 }
 
+.field input:hover:not(:focus), .field select:hover:not(:focus) {
+  border-color: #b8c1d1;
+  background: #fcfcfe;
+}
+
 .field input:focus, .field select:focus {
-  border-color: var(--blue-light);
-  box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(97,126,202,.18);
   background: #fff;
 }
 
@@ -350,9 +359,11 @@ body {
   padding: 12px 12px;
   border-bottom: 1px solid var(--gray-100);
   color: var(--gray-700);
+  transition: background .15s ease;
 }
 .pipeline-table tr:last-child td { border-bottom: none; }
-.pipeline-table tr:hover td { background: var(--gray-50); }
+.pipeline-table tr:hover td { background: rgba(97,126,202,.06); }
+.pipeline-table tr:hover td:first-child { box-shadow: inset 3px 0 0 var(--blue); }
 
 .status-badge {
   display: inline-flex;
