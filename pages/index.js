@@ -109,7 +109,8 @@ const STATUS_LABELS = { approved:'Empresa elegible — puede avanzar', warning:'
 const STATUS_ICONS  = { approved:'✓', warning:'⚠', rejected:'✗' }
 
 function PanelResultado({ resultado, onAgregar, loading }) {
-  const { r, elig, form } = resultado
+  const { r, elig, form, prestamo } = resultado
+  const recomendable = prestamo && elig.score >= prestamo.umbral && r.ventas_mens > 0
 
   const scoreColor = elig.score >= 80 ? '#059669' : elig.score >= 60 ? '#D97706' : '#DC2626'
 
@@ -132,6 +133,78 @@ function PanelResultado({ resultado, onAgregar, loading }) {
       <div className="score-bar-wrap">
         <div className="score-bar" style={{ width: elig.score+'%', background: scoreColor }} />
       </div>
+
+      {/* Recomendación de crédito — se activa cuando score supera el umbral */}
+      {recomendable && (
+        <div style={{
+          marginTop: 16, padding: '16px 20px',
+          background: 'linear-gradient(135deg, #ECFDF5 0%, #F0FDF4 100%)',
+          border: '1px solid #86EFAC', borderRadius: 12,
+          boxShadow: '0 2px 8px rgba(5,150,105,.08)'
+        }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:6 }}>
+            <span style={{ fontSize:18 }}>💡</span>
+            <div style={{ fontWeight:600, color:'#065F46', fontSize:14 }}>Recomendación de crédito sugerida</div>
+            <span style={{
+              marginLeft:'auto', fontSize:11, padding:'3px 10px',
+              background:'#D1FAE5', color:'#065F46', borderRadius:10, fontWeight:500
+            }}>Score {elig.score} ≥ {prestamo.umbral}</span>
+          </div>
+          <div style={{ fontSize:11, color:'#475569', marginBottom:12, fontStyle:'italic' }}>
+            Dos opciones alternativas (no se suman) — se elige CP <em>o</em> LP según necesidad de la empresa.
+          </div>
+
+          <div style={{ display:'grid', gridTemplateColumns:'1fr auto 1fr', gap:10, alignItems:'stretch' }}>
+            <div style={{ padding:'12px 16px', background:'#fff', borderRadius:8, border:'1px solid #D1FAE5' }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                <div style={{ fontSize:11, color:'#047857', textTransform:'uppercase', letterSpacing:'.05em', fontWeight:600 }}>Corto plazo</div>
+                {prestamo.cp_capeado && (
+                  <span title={`Cap de ${prestamo.cobertura_max_ebitda}m de EBITDA`} style={{ fontSize:10, padding:'2px 6px', background:'#FEF3C7', color:'#92400E', borderRadius:6, fontWeight:500 }}>cap EBITDA</span>
+                )}
+              </div>
+              <div style={{ fontSize:24, fontWeight:600, color:'#065F46', marginTop:4 }}>{fmtK(prestamo.cp)}</div>
+              <div style={{ fontSize:11, color:'#64748B', marginTop:2 }}>{prestamo.dias_cp} días de ventas</div>
+            </div>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'center', color:'#94A3B8', fontSize:11, fontStyle:'italic', padding:'0 4px' }}>o bien</div>
+            <div style={{ padding:'12px 16px', background:'#fff', borderRadius:8, border:'1px solid #D1FAE5' }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                <div style={{ fontSize:11, color:'#047857', textTransform:'uppercase', letterSpacing:'.05em', fontWeight:600 }}>Largo plazo</div>
+                {prestamo.lp_capeado && (
+                  <span title={`Cap de ${prestamo.cobertura_max_ebitda}m de EBITDA`} style={{ fontSize:10, padding:'2px 6px', background:'#FEF3C7', color:'#92400E', borderRadius:6, fontWeight:500 }}>cap EBITDA</span>
+                )}
+              </div>
+              <div style={{ fontSize:24, fontWeight:600, color:'#065F46', marginTop:4 }}>{fmtK(prestamo.lp)}</div>
+              <div style={{ fontSize:11, color:'#64748B', marginTop:2 }}>{prestamo.dias_lp} días de ventas</div>
+            </div>
+          </div>
+
+          {/* Comparación con el monto solicitado */}
+          {prestamo.comparacion && (
+            <div style={{
+              marginTop:12, padding:'10px 14px',
+              background: prestamo.comparacion.excede ? '#FEF2F2' : '#F0FDF4',
+              border: `1px solid ${prestamo.comparacion.excede ? '#FECACA' : '#BBF7D0'}`,
+              borderRadius:8, fontSize:12
+            }}>
+              <span style={{ color:'#475569' }}>La empresa solicitó <strong>{fmtK(prestamo.comparacion.pidio)}</strong> — </span>
+              {prestamo.comparacion.excede ? (
+                <span style={{ color:'#991B1B', fontWeight:500 }}>
+                  supera la opción mayor sugerida ({fmtK(prestamo.comparacion.sugerido_max)}) en {((prestamo.comparacion.ratio - 1) * 100).toFixed(0)}%. Revisar plazo o monto.
+                </span>
+              ) : (
+                <span style={{ color:'#065F46', fontWeight:500 }}>
+                  cubre el {(prestamo.comparacion.ratio * 100).toFixed(0)}% de la opción mayor sugerida ({fmtK(prestamo.comparacion.sugerido_max)}). Dentro de lo recomendable.
+                </span>
+              )}
+            </div>
+          )}
+
+          <div style={{ fontSize:11, color:'#475569', marginTop:10, fontStyle:'italic' }}>
+            Base: ventas promedio post-balance de {fmtK(r.ventas_mens)}/mes
+            {prestamo.cap_activo ? ` · cap de solvencia: ${prestamo.cobertura_max_ebitda}m de EBITDA = ${fmtK(r.ebitda_mens * prestamo.cobertura_max_ebitda)}` : ' · sin cap EBITDA (EBITDA no positivo)'}.
+          </div>
+        </div>
+      )}
 
       {/* Métricas clave */}
       <div className="metrics-grid">
@@ -316,6 +389,13 @@ function PanelCriterios({ criterios, setCriterios, onSave, saving }) {
       <Section title="Estructura de deuda (en meses)" color="#D97706">
         <Row k="deuda_meses" label="Deuda financiera ≤ X meses de ventas actuales" note="Referencia: 4 meses es estándar bancario PyME" step={0.5} />
         <Row k="deuda_ebitda_m" label="Deuda financiera ≤ X meses de EBITDA mensual" note="Equivale a Deuda/EBITDA anual ≤ 0.33x" step={0.5} />
+        <Row k="var_deuda_max" label="Variación máx. de deuda post-balance (%)" note="Se evalúa sólo si cargás deuda post-balance. Ej: 20 = la deuda no debe crecer más de +20% vs balance" step={1} />
+      </Section>
+      <Section title="Recomendación de crédito" color="#059669">
+        <Row k="score_min_credito" label="Score mínimo para activar recomendación" note="Si el score supera este umbral, se calcula el préstamo sugerido automáticamente" step={1} />
+        <Row k="dias_cp_sug" label="Días de ventas sugeridos (corto plazo)" note="Monto CP = ventas diarias post-balance × este valor. CP y LP son opciones alternativas." step={1} />
+        <Row k="dias_lp_sug" label="Días de ventas sugeridos (largo plazo)" note="Monto LP = ventas diarias post-balance × este valor" step={1} />
+        <Row k="cobertura_max_ebitda" label="Cap de solvencia: meses de EBITDA máx." note="Ningún préstamo sugerido debe superar X meses de EBITDA. Default: 12 = la empresa podría repagarlo con 1 año de EBITDA" step={1} />
       </Section>
       <Section title="Solvencia y liquidez" color="#059669">
         <Row k="ct_positivo" label="Capital de trabajo positivo" type="bool" note="Activo Corriente debe superar Pasivo Corriente" />
@@ -341,23 +421,65 @@ function PanelCriterios({ criterios, setCriterios, onSave, saving }) {
 }
 
 // ── PIPELINE ───────────────────────────────────────────────────────────────
+// Determina si una entry del pipeline es apta para crédito (score sobre umbral + tiene prestamo + tiene ventas post)
+const esApta = e => e.prestamo && e.elig.score >= (e.prestamo.umbral ?? 70) && e.r.ventas_mens > 0
+
 function PanelPipeline({ pipeline, onDelete, onClear, onExport }) {
+  const [sortKey, setSortKey]   = useState('score')
+  const [sortDir, setSortDir]   = useState('desc')
+  const [soloAptas, setSoloAptas] = useState(false)
+
+  const aptas = pipeline.filter(esApta)
+  const sumCP = aptas.reduce((s, e) => s + (e.prestamo?.cp || 0), 0)
+  const sumLP = aptas.reduce((s, e) => s + (e.prestamo?.lp || 0), 0)
+
   const totales = {
     aprobadas: pipeline.filter(e => e.elig.status === 'approved').length,
     observ:    pipeline.filter(e => e.elig.status === 'warning').length,
     rechaz:    pipeline.filter(e => e.elig.status === 'rejected').length,
-    scoreAvg:  pipeline.length > 0 ? Math.round(pipeline.reduce((s,e) => s + e.elig.score, 0) / pipeline.length) : 0,
+    aptas:     aptas.length,
   }
+
+  const filtradas = soloAptas ? aptas : pipeline
+  const sortVal = (e, k) => {
+    switch (k) {
+      case 'razon':   return (e.form.razon || '').toLowerCase()
+      case 'ventas':  return e.form.ventas || 0
+      case 'score':   return e.elig.score || 0
+      case 'credito': return esApta(e) ? (e.prestamo.lp || 0) : -1
+      case 'estado':  return ({ approved:3, warning:2, rejected:1 }[e.elig.status] || 0)
+      default: return 0
+    }
+  }
+  const ordenadas = [...filtradas].sort((a,b) => {
+    const va = sortVal(a, sortKey), vb = sortVal(b, sortKey)
+    if (va < vb) return sortDir === 'asc' ? -1 : 1
+    if (va > vb) return sortDir === 'asc' ? 1 : -1
+    return 0
+  })
+
+  const toggleSort = k => {
+    if (sortKey === k) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortKey(k); setSortDir(k === 'razon' ? 'asc' : 'desc') }
+  }
+  const arrow = k => sortKey === k ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''
+  const thSort = k => ({
+    style: { cursor:'pointer', userSelect:'none' },
+    onClick: () => toggleSort(k),
+    title: 'Clickeá para ordenar',
+    'data-sortable': 'true',
+  })
 
   return (
     <div>
-      {/* Contadores */}
-      <div className="metrics-grid" style={{ gridTemplateColumns:'repeat(4,1fr)', marginTop:0 }}>
+      {/* Contadores principales */}
+      <div className="metrics-grid" style={{ gridTemplateColumns:'repeat(5,1fr)', marginTop:0 }}>
         {[
           ['Total empresas', pipeline.length, 'neutral'],
           ['Elegibles', totales.aprobadas, 'good'],
           ['Con observaciones', totales.observ, 'warn'],
           ['Rechazadas', totales.rechaz, 'bad'],
+          ['Aptas para crédito', totales.aptas, totales.aptas > 0 ? 'good' : 'neutral'],
         ].map(([l,v,c]) => (
           <div key={l} className="metric-card">
             <div className="metric-label">{l}</div>
@@ -366,10 +488,49 @@ function PanelPipeline({ pipeline, onDelete, onClear, onExport }) {
         ))}
       </div>
 
-      {/* Acciones */}
-      <div style={{ display:'flex', gap:10, margin:'16px 0', justifyContent:'flex-end' }}>
-        <button className="btn btn-ghost" onClick={onExport} disabled={!pipeline.length}>📥 Exportar CSV</button>
-        <button className="btn btn-danger" onClick={onClear} disabled={!pipeline.length}>🗑 Limpiar pipeline</button>
+      {/* Banner: Cartera crediticia potencial */}
+      {totales.aptas > 0 && (
+        <div style={{
+          marginTop: 14, padding: '16px 20px',
+          background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%)',
+          border: '1px solid #C7D2FE', borderRadius: 12,
+          boxShadow: '0 2px 8px rgba(99,102,241,.08)',
+          display:'flex', alignItems:'center', gap:20, flexWrap:'wrap'
+        }}>
+          <div style={{ fontSize:28 }}>💼</div>
+          <div style={{ flex:1, minWidth:200 }}>
+            <div style={{ fontSize:11, color:'#4338CA', textTransform:'uppercase', letterSpacing:'.06em', fontWeight:600, marginBottom:3 }}>Cartera crediticia potencial</div>
+            <div style={{ fontSize:11, color:'#64748B' }}>{totales.aptas} {totales.aptas === 1 ? 'empresa apta' : 'empresas aptas'} · suma de préstamos sugeridos si cada una optara por la misma modalidad</div>
+          </div>
+          <div style={{ display:'flex', gap:12 }}>
+            <div style={{ padding:'10px 16px', background:'#fff', borderRadius:8, border:'1px solid #C7D2FE', minWidth:140 }}>
+              <div style={{ fontSize:11, color:'#4338CA', textTransform:'uppercase', letterSpacing:'.05em', fontWeight:600 }}>Si todas toman CP</div>
+              <div style={{ fontSize:22, fontWeight:600, color:'#312E81', marginTop:3 }}>{fmtK(sumCP)}</div>
+            </div>
+            <div style={{ padding:'10px 16px', background:'#4F46E5', borderRadius:8, minWidth:140 }}>
+              <div style={{ fontSize:11, color:'#C7D2FE', textTransform:'uppercase', letterSpacing:'.05em', fontWeight:600 }}>Si todas toman LP</div>
+              <div style={{ fontSize:22, fontWeight:600, color:'#fff', marginTop:3 }}>{fmtK(sumLP)}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Acciones + filtro */}
+      <div style={{ display:'flex', gap:10, margin:'16px 0', alignItems:'center' }}>
+        <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, color:'var(--ink-2)', fontWeight:500 }}>
+          <input
+            type="checkbox"
+            checked={soloAptas}
+            onChange={e => setSoloAptas(e.target.checked)}
+            style={{ width:16, height:16, cursor:'pointer', accentColor:'#4F46E5' }}
+          />
+          <span>Ver sólo aptas para crédito</span>
+          {soloAptas && <span style={{ fontSize:11, color:'#64748B' }}>({aptas.length} de {pipeline.length})</span>}
+        </label>
+        <div style={{ marginLeft:'auto', display:'flex', gap:10 }}>
+          <button className="btn btn-ghost" onClick={onExport} disabled={!pipeline.length}>📥 Exportar CSV</button>
+          <button className="btn btn-danger" onClick={onClear} disabled={!pipeline.length}>🗑 Limpiar pipeline</button>
+        </div>
       </div>
 
       {/* Tabla */}
@@ -378,42 +539,68 @@ function PanelPipeline({ pipeline, onDelete, onClear, onExport }) {
           <div className="empty-icon">📋</div>
           <div className="empty-text">Aún no hay empresas en el pipeline.<br/>Analizá una empresa y agregala desde el formulario.</div>
         </div>
+      ) : ordenadas.length === 0 ? (
+        <div className="empty-state card">
+          <div className="empty-icon">🔍</div>
+          <div className="empty-text">Ninguna empresa apta para crédito con los criterios actuales.<br/>Destildá el filtro para ver todas.</div>
+        </div>
       ) : (
         <div className="card">
           <div style={{ overflowX:'auto' }}>
             <table className="pipeline-table">
               <thead>
                 <tr>
-                  <th>Empresa</th><th>Sector</th><th>Ventas</th><th>EBITDA</th>
-                  <th>D/Ventas</th><th>D/EBITDA</th><th>CT</th><th>Score</th><th>Estado</th><th></th>
+                  <th {...thSort('razon')}>Empresa{arrow('razon')}</th>
+                  <th>Sector</th>
+                  <th {...thSort('ventas')}>Ventas{arrow('ventas')}</th>
+                  <th>EBITDA</th>
+                  <th>D/Ventas</th>
+                  <th>D/EBITDA</th>
+                  <th>CT</th>
+                  <th {...thSort('score')}>Score{arrow('score')}</th>
+                  <th {...thSort('credito')}>Crédito sugerido{arrow('credito')}</th>
+                  <th {...thSort('estado')}>Estado{arrow('estado')}</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
-                {pipeline.map(e => (
-                  <tr key={e.id}>
-                    <td>
-                      <div style={{ fontWeight:500, color:'#0F172A' }}>{e.form.razon}</div>
-                      <div style={{ fontSize:11, color:'#94A3B8' }}>{e.form.cuit}</div>
-                    </td>
-                    <td style={{ color:'#64748B' }}>{e.form.sector || '—'}</td>
-                    <td>{fmtK(e.form.ventas)}</td>
-                    <td>{fmtK(e.r.ebitda)}<span style={{fontSize:11,color:'#94A3B8'}}> {e.r.margen_ebitda.toFixed(1)}%</span></td>
-                    <td style={{ color: e.r.deuda_meses_ventas <= 4 ? '#059669' : '#DC2626', fontWeight:500 }}>{e.r.deuda_meses_ventas.toFixed(1)}m</td>
-                    <td style={{ color: e.r.ebitda_mens > 0 && e.r.deuda_meses_ebitda <= 4 ? '#059669' : '#DC2626', fontWeight:500 }}>
-                      {e.r.ebitda_mens > 0 ? e.r.deuda_meses_ebitda.toFixed(1)+'m' : 'n/a'}
-                    </td>
-                    <td style={{ color: e.r.capital_trabajo > 0 ? '#059669' : '#DC2626', fontWeight:500 }}>{fmtK(e.r.capital_trabajo)}</td>
-                    <td style={{ fontWeight:600, fontFamily:"'DM Serif Display',serif", fontSize:16 }}>{e.elig.score}</td>
-                    <td>
-                      <span className={`status-badge ${e.elig.status}`}>
-                        {STATUS_ICONS[e.elig.status]} {e.elig.status === 'approved' ? 'Elegible' : e.elig.status === 'warning' ? 'Con obs.' : 'No elegible'}
-                      </span>
-                    </td>
-                    <td>
-                      <button className="btn btn-ghost" style={{ padding:'4px 10px', fontSize:11 }} onClick={() => onDelete(e.id)}>✕</button>
-                    </td>
-                  </tr>
-                ))}
+                {ordenadas.map(e => {
+                  const p = e.prestamo
+                  const apto = esApta(e)
+                  return (
+                    <tr key={e.id}>
+                      <td>
+                        <div style={{ fontWeight:500, color:'#0F172A' }}>{e.form.razon}</div>
+                        <div style={{ fontSize:11, color:'#94A3B8' }}>{e.form.cuit}</div>
+                      </td>
+                      <td style={{ color:'#64748B' }}>{e.form.sector || '—'}</td>
+                      <td>{fmtK(e.form.ventas)}</td>
+                      <td>{fmtK(e.r.ebitda)}<span style={{fontSize:11,color:'#94A3B8'}}> {e.r.margen_ebitda.toFixed(1)}%</span></td>
+                      <td style={{ color: e.r.deuda_meses_ventas <= 4 ? '#059669' : '#DC2626', fontWeight:500 }}>{e.r.deuda_meses_ventas.toFixed(1)}m</td>
+                      <td style={{ color: e.r.ebitda_mens > 0 && e.r.deuda_meses_ebitda <= 4 ? '#059669' : '#DC2626', fontWeight:500 }}>
+                        {e.r.ebitda_mens > 0 ? e.r.deuda_meses_ebitda.toFixed(1)+'m' : 'n/a'}
+                      </td>
+                      <td style={{ color: e.r.capital_trabajo > 0 ? '#059669' : '#DC2626', fontWeight:500 }}>{fmtK(e.r.capital_trabajo)}</td>
+                      <td style={{ fontWeight:600, fontFamily:"'DM Serif Display',serif", fontSize:16 }}>{e.elig.score}</td>
+                      <td style={{ fontSize:12 }}>
+                        {apto ? (
+                          <>
+                            <div style={{ color:'#065F46', fontWeight:500 }}>CP {fmtK(p.cp)}</div>
+                            <div style={{ color:'#065F46', fontWeight:500 }}>LP {fmtK(p.lp)}</div>
+                          </>
+                        ) : <span style={{ color:'#CBD5E1' }}>—</span>}
+                      </td>
+                      <td>
+                        <span className={`status-badge ${e.elig.status}`}>
+                          {STATUS_ICONS[e.elig.status]} {e.elig.status === 'approved' ? 'Elegible' : e.elig.status === 'warning' ? 'Con obs.' : 'No elegible'}
+                        </span>
+                      </td>
+                      <td>
+                        <button className="btn btn-ghost" style={{ padding:'4px 10px', fontSize:11 }} onClick={() => onDelete(e.id)}>✕</button>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -454,7 +641,28 @@ export default function App() {
     const meses_post = monthsForCalc.map(m => formNum[m.id] || 0)
     const r = calcularRatios({ ...formNum, meses_post, deuda_post: formNum.deuda_post })
     const elig = evalElegibilidad(r, formNum.antiguedad, formNum.fin_sol, criterios)
-    setResultado({ r, elig, form: { ...formNum, razon: form.razon, cuit: form.cuit, sector: form.sector, destino: form.destino, cierre_ejercicio: form.cierre_ejercicio, incluir_mes_actual: form.incluir_mes_actual } })
+    // Préstamo sugerido: días de ventas promedio post-balance (/30 para ventas diarias) — CP y LP son opciones alternativas
+    const diarias = r.ventas_mens / 30
+    const raw_cp = diarias * criterios.dias_cp_sug
+    const raw_lp = diarias * criterios.dias_lp_sug
+    const cap = r.ebitda_mens > 0 ? r.ebitda_mens * criterios.cobertura_max_ebitda : Infinity
+    const cp = Math.min(raw_cp, cap)
+    const lp = Math.min(raw_lp, cap)
+    const sugerido_max = Math.max(cp, lp)
+    const comparacion_fin = formNum.fin_sol > 0 && sugerido_max > 0
+      ? { pidio: formNum.fin_sol, sugerido_max, ratio: formNum.fin_sol / sugerido_max, excede: formNum.fin_sol > sugerido_max }
+      : null
+    const prestamo = {
+      cp, lp, cp_raw: raw_cp, lp_raw: raw_lp,
+      cp_capeado: raw_cp > cap && r.ebitda_mens > 0,
+      lp_capeado: raw_lp > cap && r.ebitda_mens > 0,
+      cap_activo: r.ebitda_mens > 0,
+      dias_cp: criterios.dias_cp_sug, dias_lp: criterios.dias_lp_sug,
+      umbral: criterios.score_min_credito,
+      cobertura_max_ebitda: criterios.cobertura_max_ebitda,
+      comparacion: comparacion_fin,
+    }
+    setResultado({ r, elig, prestamo, form: { ...formNum, razon: form.razon, cuit: form.cuit, sector: form.sector, destino: form.destino, cierre_ejercicio: form.cierre_ejercicio, incluir_mes_actual: form.incluir_mes_actual } })
     setTab('resultado')
   }
 
@@ -497,15 +705,23 @@ export default function App() {
   }
 
   const exportarCSV = () => {
-    const headers = ['Empresa','CUIT','Sector','Antigüedad','Ventas','EBITDA','Mg.EBITDA%','Liquidez','Endeudamiento','CT','D/Ventas(m)','D/EBITDA(m)','Score','Estado']
-    const rows = pipeline.map(e => [
-      e.form.razon, e.form.cuit, e.form.sector, e.form.antiguedad,
-      e.form.ventas, e.r.ebitda, e.r.margen_ebitda.toFixed(1),
-      e.r.liquidez.toFixed(2), e.r.endeudamiento.toFixed(2),
-      e.r.capital_trabajo, e.r.deuda_meses_ventas.toFixed(2),
-      e.r.ebitda_mens > 0 ? e.r.deuda_meses_ebitda.toFixed(2) : 'n/a',
-      e.elig.score, e.elig.status
-    ])
+    const headers = ['Empresa','CUIT','Sector','Antigüedad','Ventas','EBITDA','Mg.EBITDA%','Liquidez','Endeudamiento','CT','D/Ventas(m)','D/EBITDA(m)','Score','Estado','Pidió($K)','Sug.CP($K)','Sug.LP($K)','Recomendable']
+    const rows = pipeline.map(e => {
+      const p = e.prestamo
+      const apto = p && e.elig.score >= (p.umbral ?? 70) && e.r.ventas_mens > 0
+      return [
+        e.form.razon, e.form.cuit, e.form.sector, e.form.antiguedad,
+        e.form.ventas, e.r.ebitda, e.r.margen_ebitda.toFixed(1),
+        e.r.liquidez.toFixed(2), e.r.endeudamiento.toFixed(2),
+        e.r.capital_trabajo, e.r.deuda_meses_ventas.toFixed(2),
+        e.r.ebitda_mens > 0 ? e.r.deuda_meses_ebitda.toFixed(2) : 'n/a',
+        e.elig.score, e.elig.status,
+        e.form.fin_sol || 0,
+        apto ? Math.round(p.cp) : '',
+        apto ? Math.round(p.lp) : '',
+        apto ? 'sí' : 'no'
+      ]
+    })
     const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n')
     const a = document.createElement('a')
     a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8;' }))

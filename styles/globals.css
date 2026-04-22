@@ -417,6 +417,7 @@ body {
 .pipeline-table tr:last-child td { border-bottom: none; }
 .pipeline-table tr:hover td { background: rgba(97,126,202,.06); }
 .pipeline-table tr:hover td:first-child { box-shadow: inset 3px 0 0 var(--blue); }
+.pipeline-table th[data-sortable]:hover { background: #EEF2FF; color: #4338CA; }
 
 .status-badge {
   display: inline-flex;
