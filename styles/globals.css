@@ -550,6 +550,12 @@ body {
 }
 .pdf-capturing .action-bar { display: none !important; }
 
+/* Espaciado extra durante la captura PDF para favorecer cortes limpios entre páginas */
+.pdf-capturing .check-item { margin-bottom: 4px; }
+.pdf-capturing .metric-card { margin-bottom: 4px; }
+.pdf-capturing .card.section-gap { margin-top: 36px; }
+.pdf-capturing .memo-section + .memo-section { margin-top: 18px; padding-top: 18px; }
+
 /* Loading spinner */
 @keyframes spin { to { transform: rotate(360deg); } }
 .spinner {

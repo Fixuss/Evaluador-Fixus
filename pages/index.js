@@ -231,17 +231,6 @@ function buildMemoAnalista(r, elig, form, prestamo) {
     })
   }
 
-  // 7) CONCLUSIÓN
-  let concl = ''
-  if (elig.status === 'approved') {
-    concl = `Del análisis integrado surge que ${razon} presenta un perfil crediticio apto para avanzar con la operación bajo los parámetros habituales. Se sugiere dar curso a la solicitud y elevar a instancia de aprobación, verificando documentación respaldatoria estándar.`
-  } else if (elig.status === 'warning') {
-    concl = `El caso resulta viable aunque con observaciones puntuales. Se recomienda profundizar sobre los criterios no cumplidos y considerar mitigantes tales como garantías reales, fiadores solidarios, acortamiento de plazos o reducción del monto, antes de la aprobación definitiva.`
-  } else {
-    concl = `El perfil evaluado no reúne las condiciones mínimas para avanzar con el financiamiento solicitado en las condiciones actuales. Se sugiere desestimar la operación o bien reformularla sustancialmente (monto, plazo, garantías) y reevaluar en una próxima instancia.`
-  }
-  secciones.push({ titulo: 'Conclusión del analista', texto: concl })
-
   return secciones
 }
 
@@ -889,12 +878,44 @@ export default function App() {
       if (imgH <= pageH) {
         pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, pageW, imgH)
       } else {
-        // Cortar en páginas
+        // Cortar en páginas buscando filas blancas para NO partir elementos a la mitad.
         const pxPorPagina = Math.floor(pageH / ratio)
+        const ctxFull = canvas.getContext('2d')
+
+        // Devuelve el y más cercano <= targetY donde hay una fila "casi blanca" (espacio entre bloques).
+        // Retrocede hasta lookback píxeles. Si no encuentra, devuelve targetY (fallback al corte duro).
+        const findCut = (targetY, lookback = 260) => {
+          const from = Math.max(0, targetY - lookback)
+          for (let y = targetY; y >= from; y--) {
+            const row = ctxFull.getImageData(0, y, canvas.width, 1).data
+            let white = true
+            // Contamos píxeles "no blancos"; toleramos un 1% de ruido para evitar bordes anti-alias.
+            let dirty = 0
+            const maxDirty = Math.max(4, Math.floor(canvas.width * 0.01))
+            for (let i = 0; i < row.length; i += 4) {
+              const r = row[i], g = row[i+1], b = row[i+2]
+              if (r < 240 || g < 240 || b < 240) {
+                dirty++
+                if (dirty > maxDirty) { white = false; break }
+              }
+            }
+            if (white) return y
+          }
+          return targetY
+        }
+
         let yOffset = 0
         let firstPage = true
         while (yOffset < canvas.height) {
-          const sliceH = Math.min(pxPorPagina, canvas.height - yOffset)
+          let sliceH
+          const remaining = canvas.height - yOffset
+          if (remaining <= pxPorPagina) {
+            sliceH = remaining // última página
+          } else {
+            const hardCut = yOffset + pxPorPagina
+            const softCut = findCut(hardCut)
+            sliceH = Math.max(softCut - yOffset, Math.floor(pxPorPagina * 0.6)) // al menos 60% de página para no desperdiciar
+          }
           const slice = document.createElement('canvas')
           slice.width = canvas.width
           slice.height = sliceH
