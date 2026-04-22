@@ -103,12 +103,154 @@ function Campo({ label, id, form, setForm, type='number', span=1, placeholder=''
   )
 }
 
+// ── MEMO ANALÍTICO ─────────────────────────────────────────────────────────
+// Construye un memo crediticio argumentado a partir de los ratios y el análisis.
+// Devuelve un array de secciones { titulo, texto } para renderizar o exportar.
+function buildMemoAnalista(r, elig, form, prestamo) {
+  const razon = form.razon || 'La empresa'
+  const sector = form.sector ? `el sector ${form.sector}` : 'un sector no informado'
+  const antig = form.antiguedad || 0
+  const secciones = []
+
+  // 1) SÍNTESIS DEL CASO
+  const statusFrase = {
+    approved: 'reúne los criterios de elegibilidad establecidos por la política crediticia vigente',
+    warning:  'presenta un perfil aceptable pero con observaciones puntuales que merecen análisis complementario',
+    rejected: 'no alcanza los estándares mínimos requeridos por la política crediticia vigente',
+  }[elig.status]
+  let sint = `${razon} desarrolla su actividad en ${sector} con ${antig} años de trayectoria. `
+  sint += `Sobre un total de ${elig.total} criterios evaluados, la empresa cumple ${elig.pasados}, `
+  sint += `arrojando un score de ${elig.score}/100. En tal sentido, ${razon} ${statusFrase}. `
+  if (form.fin_sol > 0) {
+    sint += `El financiamiento solicitado asciende a ${fmtK(form.fin_sol)}`
+    sint += form.destino ? `, con destino a ${form.destino}.` : '.'
+  }
+  secciones.push({ titulo: 'Síntesis del caso', texto: sint })
+
+  // 2) RENTABILIDAD Y GENERACIÓN OPERATIVA
+  const califMargen =
+    r.margen_ebitda >= 15 ? 'holgado y por encima del promedio PyME habitual'
+    : r.margen_ebitda >= 8  ? 'en línea con los estándares esperables para el segmento'
+    : r.margen_ebitda >= 5  ? 'ajustado, cubriendo mínimamente la estructura operativa'
+    :                          'deficiente, comprometiendo la sustentabilidad del negocio'
+  const resNetoFrase = r.res_neto > 0
+    ? `arrojando un resultado neto positivo de ${fmtK(r.res_neto)} (${r.margen_neto.toFixed(1)}%), consistente con una operación rentable`
+    : `con un resultado neto negativo de ${fmtK(r.res_neto)} (${r.margen_neto.toFixed(1)}%), señal de alerta que debe contextualizarse (inversiones, cargos no recurrentes, situación excepcional)`
+  let rent = `Sobre ventas netas de ${fmtK(form.ventas)}, la empresa genera un EBITDA de ${fmtK(r.ebitda)} `
+  rent += `equivalente a un margen del ${r.margen_ebitda.toFixed(1)}%, ${califMargen}. `
+  rent += `El margen bruto se sitúa en el ${r.margen_bruto.toFixed(1)}%, `
+  rent += `y el ejercicio cierra ${resNetoFrase}. `
+  if (r.ebitda > 0 && r.intereses > 0) {
+    rent += `La cobertura de intereses alcanza ${r.cobertura.toFixed(1)}x, `
+    rent += r.cobertura >= 3 ? 'con holgura suficiente para atender el costo financiero.' :
+            r.cobertura >= 1.5 ? 'cobertura ajustada pero viable.' :
+            'cobertura crítica que debe ser considerada.'
+  }
+  secciones.push({ titulo: 'Rentabilidad y generación operativa', texto: rent })
+
+  // 3) SOLVENCIA Y LIQUIDEZ
+  const liqFrase =
+    r.liquidez >= 1.5 ? 'posición de liquidez holgada frente a los compromisos corrientes'
+    : r.liquidez >= 1.0 ? 'cobertura ajustada pero suficiente del pasivo corriente'
+    :                     'déficit de liquidez corriente que exige atención'
+  const ctFrase = r.capital_trabajo > 0
+    ? `capital de trabajo positivo por ${fmtK(r.capital_trabajo)}, consistente con el giro comercial`
+    : `capital de trabajo negativo por ${fmtK(r.capital_trabajo)}, debilidad estructural a considerar en la toma de decisión`
+  const endCalif =
+    r.endeudamiento <= 1.5 ? 'apalancamiento conservador'
+    : r.endeudamiento <= 3.0 ? 'apalancamiento dentro de parámetros aceptables'
+    :                          'apalancamiento elevado que exige cautela adicional'
+  let solv = `La empresa evidencia una ${liqFrase} (liquidez corriente de ${r.liquidez.toFixed(2)}x) y un ${ctFrase}. `
+  solv += `El patrimonio neto asciende a ${fmtK(form.pn)} frente a un pasivo total de ${fmtK(r.pasivo_total)}, `
+  solv += `resultando en una relación Pasivo/PN de ${r.endeudamiento.toFixed(2)}x — ${endCalif}. `
+  solv += `El ROE se ubica en ${r.roe.toFixed(1)}% y el ROA en ${r.roa.toFixed(1)}%.`
+  secciones.push({ titulo: 'Solvencia y estructura patrimonial', texto: solv })
+
+  // 4) ESTRUCTURA Y EVOLUCIÓN DE LA DEUDA
+  let deu = `La deuda financiera al cierre del ejercicio asciende a ${fmtK(r.deuda_fin)}, `
+  deu += `equivalente a ${r.deuda_meses_ventas.toFixed(1)} meses de ventas`
+  deu += r.ebitda_mens > 0 ? ` y ${r.deuda_meses_ebitda.toFixed(1)} meses de EBITDA. ` : '. '
+  if (r.tiene_deuda_post) {
+    const signoVar = r.var_deuda >= 0 ? `se incrementó un ${r.var_deuda.toFixed(1)}%` : `se redujo un ${Math.abs(r.var_deuda).toFixed(1)}%`
+    const califVar = r.var_deuda > 20 ? 'variación significativa que debe ser justificada'
+      : r.var_deuda > 0 ? 'crecimiento moderado y dentro de parámetros'
+      : 'evolución favorable en el período'
+    deu += `Al mes de referencia post-balance, la deuda financiera se ubica en ${fmtK(r.deuda_post)} (${r.deuda_meses_post.toFixed(1)} meses de ventas promedio post), `
+    deu += `lo que implica que ${signoVar} respecto del balance cerrado — ${califVar}. `
+  }
+  const califDeu =
+    r.deuda_meses_ventas <= 3 ? 'La estructura de endeudamiento es conservadora'
+    : r.deuda_meses_ventas <= 4 ? 'La estructura se mantiene dentro del umbral aceptable'
+    :                              'La estructura se ubica por encima del umbral recomendado por la política'
+  deu += `${califDeu} para el perfil evaluado.`
+  secciones.push({ titulo: 'Estructura y evolución de la deuda', texto: deu })
+
+  // 5) DINÁMICA COMERCIAL POST-BALANCE
+  let dim = ''
+  if (r.tiene_ant) {
+    const signo = r.var_ventas >= 0 ? `crecimiento interanual del ${r.var_ventas.toFixed(1)}%` : `caída interanual del ${Math.abs(r.var_ventas).toFixed(1)}%`
+    const cal = r.var_ventas >= 10 ? 'expansión sólida'
+      : r.var_ventas >= 0 ? 'estabilidad con sesgo positivo'
+      : r.var_ventas >= -10 ? 'retracción leve'
+      : 'contracción significativa'
+    dim += `La comparación entre ejercicios muestra un ${signo}, consistente con una ${cal}. `
+  } else {
+    dim += 'No se dispone de datos del ejercicio anterior para evaluar variación interanual. '
+  }
+  if (r.tiene_tend) {
+    const cal = r.pct_alza >= 70 ? 'dinámica comercial sólida'
+      : r.pct_alza >= 50 ? 'dinámica comercial estable'
+      : 'dinámica comercial decreciente que debe ser monitoreada'
+    dim += `Sobre los ${r.nmeses} meses post-balance relevados, el ${r.pct_alza.toFixed(0)}% muestra crecimiento respecto del período previo, indicando una ${cal}. `
+    dim += `Las ventas promedio mensuales se ubican en ${fmtK(r.ventas_mens)}.`
+  } else {
+    dim += 'La información post-balance aportada resulta insuficiente para construir una tendencia robusta.'
+  }
+  secciones.push({ titulo: 'Dinámica comercial post-balance', texto: dim })
+
+  // 6) CONSIDERACIÓN CREDITICIA
+  const apta = prestamo && elig.score >= prestamo.umbral && r.ventas_mens > 0
+  if (apta) {
+    const capFrase = prestamo.cap_activo
+      ? `respetando el cap de solvencia de ${prestamo.cobertura_max_ebitda} meses de EBITDA mensual (${fmtK(r.ebitda_mens * prestamo.cobertura_max_ebitda)})`
+      : 'sin aplicación de cap EBITDA por no resultar éste positivo'
+    let cc = `En virtud del score alcanzado (${elig.score} ≥ umbral ${prestamo.umbral}), se considera habilitada una asistencia sugerida de `
+    cc += `${fmtK(prestamo.cp)} a corto plazo (${prestamo.dias_cp} días de ventas promedio post) `
+    cc += `o bien ${fmtK(prestamo.lp)} a largo plazo (${prestamo.dias_lp} días de ventas promedio post), `
+    cc += `siendo ambas opciones alternativas y no acumulables, ${capFrase}. `
+    if (prestamo.comparacion) {
+      cc += prestamo.comparacion.excede
+        ? `El monto solicitado por la empresa (${fmtK(prestamo.comparacion.pidio)}) supera la opción mayor sugerida (${fmtK(prestamo.comparacion.sugerido_max)}) en un ${((prestamo.comparacion.ratio - 1) * 100).toFixed(0)}%, por lo cual se recomienda reformular plazos o ajustar el importe a los parámetros habilitados antes de elevar a comité.`
+        : `El monto solicitado por la empresa (${fmtK(prestamo.comparacion.pidio)}) cubre el ${(prestamo.comparacion.ratio * 100).toFixed(0)}% de la opción mayor sugerida, ubicándose dentro de los parámetros recomendables.`
+    }
+    secciones.push({ titulo: 'Consideración crediticia', texto: cc })
+  } else if (prestamo && r.ventas_mens > 0) {
+    secciones.push({
+      titulo: 'Consideración crediticia',
+      texto: `El score obtenido (${elig.score}) no alcanza el umbral mínimo de ${prestamo.umbral} exigido para activar la recomendación automática de crédito. Se recomienda resolver las debilidades señaladas en el checklist antes de avanzar con el análisis crediticio.`
+    })
+  }
+
+  // 7) CONCLUSIÓN
+  let concl = ''
+  if (elig.status === 'approved') {
+    concl = `Del análisis integrado surge que ${razon} presenta un perfil crediticio apto para avanzar con la operación bajo los parámetros habituales. Se sugiere dar curso a la solicitud y elevar a instancia de aprobación, verificando documentación respaldatoria estándar.`
+  } else if (elig.status === 'warning') {
+    concl = `El caso resulta viable aunque con observaciones puntuales. Se recomienda profundizar sobre los criterios no cumplidos y considerar mitigantes tales como garantías reales, fiadores solidarios, acortamiento de plazos o reducción del monto, antes de la aprobación definitiva.`
+  } else {
+    concl = `El perfil evaluado no reúne las condiciones mínimas para avanzar con el financiamiento solicitado en las condiciones actuales. Se sugiere desestimar la operación o bien reformularla sustancialmente (monto, plazo, garantías) y reevaluar en una próxima instancia.`
+  }
+  secciones.push({ titulo: 'Conclusión del analista', texto: concl })
+
+  return secciones
+}
+
 // ── VISTA ANÁLISIS ─────────────────────────────────────────────────────────
 const CAT_LABELS = { tendencia:'Tendencia', deuda:'Deuda', solvencia:'Solvencia', rentabilidad:'Rentabilidad', perfil:'Perfil' }
 const STATUS_LABELS = { approved:'Empresa elegible — puede avanzar', warning:'Elegible con observaciones', rejected:'No cumple los criterios mínimos' }
 const STATUS_ICONS  = { approved:'✓', warning:'⚠', rejected:'✗' }
 
-function PanelResultado({ resultado, onAgregar, loading }) {
+function PanelResultado({ resultado, onAgregar, onPDF, loading, pdfLoading }) {
   const { r, elig, form, prestamo } = resultado
   const recomendable = prestamo && elig.score >= prestamo.umbral && r.ventas_mens > 0
 
@@ -116,8 +258,31 @@ function PanelResultado({ resultado, onAgregar, loading }) {
 
   const metricColor = (v, good, ok) => v >= good ? 'good' : v >= ok ? 'warn' : 'bad'
 
+  const memo = buildMemoAnalista(r, elig, form, prestamo)
+  const fechaInforme = new Date().toLocaleDateString('es-AR', { day:'2-digit', month:'long', year:'numeric' })
+
   return (
-    <div>
+    <div id="pdf-root">
+      {/* Header visible sólo durante la captura PDF */}
+      <div className="pdf-header">
+        <div className="pdf-header-row">
+          <img src="/logo.svg" alt="Fixus" className="pdf-logo" />
+          <div className="pdf-header-title">
+            <div className="pdf-title">Informe de Evaluación Crediticia</div>
+            <div className="pdf-subtitle">Fixus — Consultora para PyMEs</div>
+          </div>
+          <div className="pdf-header-date">{fechaInforme}</div>
+        </div>
+        <div className="pdf-header-meta">
+          <div><strong>Razón social:</strong> {form.razon || '—'}</div>
+          <div><strong>CUIT:</strong> {form.cuit || '—'}</div>
+          <div><strong>Sector:</strong> {form.sector || '—'}</div>
+          <div><strong>Antigüedad:</strong> {form.antiguedad || 0} años</div>
+          <div><strong>Financiamiento solicitado:</strong> {fmtK(form.fin_sol)}</div>
+          <div><strong>Destino:</strong> {form.destino || '—'}</div>
+        </div>
+        <div className="pdf-divider" />
+      </div>
       {/* Banner */}
       <div className={`status-banner ${elig.status}`}>
         <span className="status-icon">{STATUS_ICONS[elig.status]}</span>
@@ -314,29 +479,34 @@ function PanelResultado({ resultado, onAgregar, loading }) {
         </div>
       </div>
 
-      {/* Narrativo */}
+      {/* Memo analítico */}
       <div className="card section-gap card--violet">
-        <div className="card-header"><div className="section-dot" /><span className="card-title">Análisis narrativo</span></div>
+        <div className="card-header">
+          <div className="section-dot" />
+          <span className="card-title">Análisis crediticio — Memo del analista</span>
+        </div>
         <div className="card-body">
-          <div className="narrative-box">
-            {form.razon} ({form.sector || 'sin sector'}) — {form.antiguedad} años de antigüedad.{' '}
-            Ventas: {fmtK(form.ventas)} | EBITDA: {fmtK(r.ebitda)} ({r.margen_ebitda.toFixed(1)}%) | Resultado neto: {fmtK(r.res_neto)}.{' '}
-            Capital de trabajo: {fmtK(r.capital_trabajo)} | Liquidez: {r.liquidez.toFixed(2)}x | Endeudamiento: {r.endeudamiento.toFixed(2)}x.{' '}
-            Deuda financiera (balance): {fmtK(r.deuda_fin)} = {r.deuda_meses_ventas.toFixed(1)} meses de ventas actuales
-            {r.ebitda_mens > 0 ? ` y ${r.deuda_meses_ebitda.toFixed(1)} meses de EBITDA` : ''}.{' '}
-            {r.tiene_deuda_post ? `Deuda post-balance: ${fmtK(r.deuda_post)} = ${r.deuda_meses_post.toFixed(1)} meses de ventas (${r.var_deuda >= 0 ? '+' : ''}${r.var_deuda.toFixed(1)}% vs. balance). ` : ''}
-            {r.tiene_ant ? `Variación de ventas interanual: ${r.var_ventas >= 0 ? '+' : ''}${r.var_ventas.toFixed(1)}%. ` : ''}
-            {r.tiene_tend ? `Tendencia post-balance: ${r.pct_alza.toFixed(0)}% de meses con alza. ` : ''}
-            Score de elegibilidad: {elig.score}/100 ({elig.pasados}/{elig.total} criterios).
-            Financiamiento solicitado: {fmtK(form.fin_sol)} — Destino: {form.destino || 'no especificado'}.
+          <div className="memo-box">
+            {memo.map((s, i) => (
+              <div key={i} className="memo-section">
+                <div className="memo-title">{i + 1}. {s.titulo}</div>
+                <div className="memo-text">{s.texto}</div>
+              </div>
+            ))}
+            <div className="memo-footer">
+              Informe generado el {fechaInforme} · Evaluador crediticio Fixus · Documento de uso interno
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Botón agregar */}
-      <div style={{ marginTop:16, display:'flex', gap:10 }}>
-        <button className="btn btn-success" onClick={onAgregar} disabled={loading}>
+      {/* Botones de acción */}
+      <div className="action-bar" style={{ marginTop:16, display:'flex', gap:10, flexWrap:'wrap' }}>
+        <button className="btn btn-success" onClick={onAgregar} disabled={loading || pdfLoading}>
           {loading ? <span className="spinner" /> : '✚'} Agregar al pipeline
+        </button>
+        <button className="btn btn-primary" onClick={onPDF} disabled={loading || pdfLoading} title="Exporta el informe completo en PDF con el logo de la consultora">
+          {pdfLoading ? <span className="spinner" /> : '📄'} Descargar PDF
         </button>
       </div>
     </div>
@@ -619,6 +789,7 @@ export default function App() {
   const [criterios, setCriterios] = useState(CRITERIOS_DEFAULT)
   const [toast, setToast] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [pdfLoading, setPdfLoading] = useState(false)
   const [savingCrit, setSavingCrit] = useState(false)
 
   const showToast = msg => setToast(msg)
@@ -685,6 +856,70 @@ export default function App() {
     setLoading(false)
     showToast(`"${resultado.form.razon}" agregada al pipeline ✓`)
     setTab('pipeline')
+  }
+
+  // Exporta el PanelResultado como PDF multipágina con header (logo + razón social + fecha)
+  const generarPDF = async () => {
+    if (typeof window === 'undefined' || !resultado) return
+    setPdfLoading(true)
+    const node = document.getElementById('pdf-root')
+    if (!node) { setPdfLoading(false); showToast('No se encontró el panel para exportar'); return }
+    try {
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+        import('jspdf'),
+        import('html2canvas'),
+      ])
+      node.classList.add('pdf-capturing')
+      // Pequeña espera para que el navegador aplique los estilos de captura (header visible, spacing)
+      await new Promise(res => setTimeout(res, 60))
+      const canvas = await html2canvas(node, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#FFFFFF',
+        windowWidth: node.scrollWidth,
+      })
+      node.classList.remove('pdf-capturing')
+
+      const pdf = new jsPDF('p', 'pt', 'a4')
+      const pageW = pdf.internal.pageSize.getWidth()
+      const pageH = pdf.internal.pageSize.getHeight()
+      const ratio = pageW / canvas.width
+      const imgH = canvas.height * ratio
+
+      if (imgH <= pageH) {
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, pageW, imgH)
+      } else {
+        // Cortar en páginas
+        const pxPorPagina = Math.floor(pageH / ratio)
+        let yOffset = 0
+        let firstPage = true
+        while (yOffset < canvas.height) {
+          const sliceH = Math.min(pxPorPagina, canvas.height - yOffset)
+          const slice = document.createElement('canvas')
+          slice.width = canvas.width
+          slice.height = sliceH
+          const ctx = slice.getContext('2d')
+          ctx.fillStyle = '#FFFFFF'
+          ctx.fillRect(0, 0, slice.width, slice.height)
+          ctx.drawImage(canvas, 0, yOffset, canvas.width, sliceH, 0, 0, canvas.width, sliceH)
+          if (!firstPage) pdf.addPage()
+          pdf.addImage(slice.toDataURL('image/png'), 'PNG', 0, 0, pageW, sliceH * ratio)
+          yOffset += sliceH
+          firstPage = false
+        }
+      }
+
+      const fecha = new Date().toISOString().slice(0, 10)
+      const safe = (resultado.form.razon || 'informe').replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-|-$/g, '')
+      pdf.save(`Informe-Fixus-${safe}-${fecha}.pdf`)
+      showToast('PDF generado correctamente ✓')
+    } catch (err) {
+      console.error('Error generando PDF:', err)
+      showToast('No se pudo generar el PDF. Revisá la consola.')
+      node.classList.remove('pdf-capturing')
+    } finally {
+      setPdfLoading(false)
+    }
   }
 
   const eliminarEmpresa = async (id) => {
@@ -932,7 +1167,7 @@ export default function App() {
                 <div className="page-sub">{resultado ? `${resultado.form.sector} · CUIT ${resultado.form.cuit}` : 'Analizá una empresa primero'}</div>
               </div>
               {resultado
-                ? <PanelResultado resultado={resultado} onAgregar={agregarPipeline} loading={loading} />
+                ? <PanelResultado resultado={resultado} onAgregar={agregarPipeline} onPDF={generarPDF} loading={loading} pdfLoading={pdfLoading} />
                 : (
                   <div className="empty-state card">
                     <div className="empty-icon">◎</div>

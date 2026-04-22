@@ -438,7 +438,7 @@ body {
 /* Section spacer — más aire entre secciones para diferenciarlas */
 .section-gap { margin-top: 32px; }
 
-/* Narrative box */
+/* Narrative box (legacy — conservado para compatibilidad) */
 .narrative-box {
   background: var(--gray-50);
   border: 1px solid var(--gray-200);
@@ -450,6 +450,105 @@ body {
   color: var(--gray-700);
   font-style: italic;
 }
+
+/* Memo crediticio — analista */
+.memo-box {
+  background: #FAFAF9;
+  border: 1px solid var(--gray-200);
+  border-left: 3px solid var(--blue);
+  border-radius: 8px;
+  padding: 18px 22px;
+  color: var(--gray-800, #1F2937);
+}
+.memo-section + .memo-section { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--gray-200); }
+.memo-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1E3A8A;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin-bottom: 6px;
+}
+.memo-text {
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: #334155;
+  text-align: justify;
+}
+.memo-footer {
+  margin-top: 16px;
+  padding-top: 10px;
+  border-top: 1px solid var(--gray-200);
+  font-size: 11px;
+  color: #94A3B8;
+  font-style: italic;
+  text-align: right;
+}
+
+/* Header del PDF — oculto por default, visible sólo al capturar con html2canvas */
+.pdf-header { display: none; }
+.pdf-capturing .pdf-header {
+  display: block;
+  margin-bottom: 20px;
+  padding: 18px 20px 16px;
+  background: linear-gradient(135deg, #1E3A8A 0%, #617ECA 100%);
+  border-radius: 10px;
+  color: #fff;
+}
+.pdf-capturing .pdf-header-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.pdf-capturing .pdf-logo {
+  height: 44px;
+  width: auto;
+  flex-shrink: 0;
+}
+.pdf-capturing .pdf-header-title { flex: 1; }
+.pdf-capturing .pdf-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: .01em;
+  line-height: 1.1;
+}
+.pdf-capturing .pdf-subtitle {
+  font-size: 11px;
+  opacity: .8;
+  margin-top: 2px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.pdf-capturing .pdf-header-date {
+  font-size: 12px;
+  opacity: .9;
+  text-align: right;
+  align-self: flex-start;
+  padding-top: 4px;
+}
+.pdf-capturing .pdf-header-meta {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,.25);
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px 18px;
+  font-size: 12px;
+}
+.pdf-capturing .pdf-header-meta strong {
+  font-weight: 600;
+  opacity: .85;
+  margin-right: 4px;
+}
+.pdf-capturing .pdf-divider { display: none; }
+
+/* Durante la captura: asegurar fondo sólido y ocultar elementos interactivos innecesarios */
+.pdf-capturing {
+  background: #FFFFFF;
+  padding: 20px;
+}
+.pdf-capturing .action-bar { display: none !important; }
 
 /* Loading spinner */
 @keyframes spin { to { transform: rotate(360deg); } }
