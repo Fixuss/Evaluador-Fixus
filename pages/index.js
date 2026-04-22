@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import Head from 'next/head'
 import { calcularRatios, evalElegibilidad, CRITERIOS_DEFAULT } from '../lib/financial'
+import { PERFIL_EMPTY, PERFIL_SECCIONES, buildResena, normalizeRazon } from '../lib/perfil'
 
 // ── helpers ────────────────────────────────────────────────────────────────
 const fmt = (n, dec = 0) => Number(n).toLocaleString('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec })
@@ -773,6 +774,166 @@ function PanelPipeline({ pipeline, onDelete, onClear, onExport }) {
 }
 
 // ── APP PRINCIPAL ──────────────────────────────────────────────────────────
+// ── PANEL PERFIL CUALITATIVO ───────────────────────────────────────────────
+function CampoPerfil({ def, form, setForm }) {
+  const { id, label, type = 'text', placeholder = '', rows = 3, span = 1, required = false } = def
+  const val = form[id] ?? ''
+  const onChange = e => setForm(f => ({ ...f, [id]: e.target.value }))
+  const style = span > 1 ? { gridColumn: `span ${span}` } : {}
+
+  return (
+    <div className="field" style={style}>
+      <label htmlFor={id}>{label}{required ? ' *' : ''}</label>
+      {type === 'textarea' ? (
+        <textarea
+          id={id} value={val} onChange={onChange} placeholder={placeholder} rows={rows}
+          style={{
+            width:'100%', padding:'10px 12px', fontSize:13,
+            border:'1px solid #c9d2ee', borderRadius:8, background:'#fff',
+            resize:'vertical', fontFamily:'inherit', lineHeight:1.5, outline:'none',
+          }}
+        />
+      ) : (
+        <input
+          id={id} type={type} value={val} onChange={onChange} placeholder={placeholder}
+        />
+      )}
+    </div>
+  )
+}
+
+function PanelPerfil({ form, setForm, perfilesList, onLoad, onNew, onDelete, onSave, saving, pipelineMatch, resenaVisible, setResenaVisible, onPDF, pdfLoading }) {
+  const resena = useMemo(() => buildResena(form, pipelineMatch), [form, pipelineMatch])
+  const fechaInforme = new Date().toLocaleDateString('es-AR', { day:'2-digit', month:'long', year:'numeric' })
+  const perfilKey = normalizeRazon(form.razon)
+
+  return (
+    <div>
+      {/* Barra superior: gestión de perfiles guardados */}
+      <div className="card" style={{ padding:'14px 18px' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+          <div style={{ fontSize:12, color:'#64748B', textTransform:'uppercase', letterSpacing:'.05em', fontWeight:600 }}>
+            Perfiles guardados ({perfilesList.length})
+          </div>
+          <select
+            value={perfilKey && perfilesList.find(p => p.key === perfilKey) ? perfilKey : ''}
+            onChange={e => e.target.value && onLoad(e.target.value)}
+            style={{ flex:1, minWidth:200, padding:'8px 12px', fontSize:13, border:'1px solid #c9d2ee', borderRadius:8, background:'#fff', outline:'none' }}
+          >
+            <option value="">— Seleccionar perfil para cargar —</option>
+            {perfilesList.map(p => (
+              <option key={p.key} value={p.key}>{p.razon}{p.actualizado_en ? ` · ${p.actualizado_en.slice(0,10)}` : ''}</option>
+            ))}
+          </select>
+          <button className="btn btn-ghost" onClick={onNew}>＋ Nuevo perfil</button>
+          {perfilKey && perfilesList.find(p => p.key === perfilKey) && (
+            <button className="btn btn-ghost" style={{ color:'#DC2626' }} onClick={() => onDelete(perfilKey)}>🗑 Eliminar</button>
+          )}
+        </div>
+      </div>
+
+      {/* Banner: vinculación con análisis crediticio */}
+      {pipelineMatch && (
+        <div style={{
+          marginTop:16, padding:'12px 16px', display:'flex', alignItems:'center', gap:12,
+          background: 'linear-gradient(135deg, #ECFDF5 0%, #F0FDF4 100%)',
+          border:'1px solid #86EFAC', borderRadius:10,
+        }}>
+          <span style={{ fontSize:18 }}>🔗</span>
+          <div style={{ flex:1, fontSize:13, color:'#065F46' }}>
+            <strong>Vinculada al análisis crediticio.</strong> Esta empresa ya fue evaluada — score {pipelineMatch.elig?.score}/100.
+            La reseña incluirá automáticamente la situación crediticia actual.
+          </div>
+        </div>
+      )}
+
+      {/* Formulario por secciones */}
+      {PERFIL_SECCIONES.map((sec, i) => (
+        <div key={i} className="card section-gap card--indigo">
+          <div className="card-header"><div className="section-dot" /><span className="card-title">{sec.titulo}</span></div>
+          <div className="card-body">
+            <div className="form-grid">
+              {sec.campos.map(c => (
+                <CampoPerfil key={c.id} def={c} form={form} setForm={setForm} />
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {/* Acciones principales */}
+      <div style={{ marginTop:20, display:'flex', gap:10, flexWrap:'wrap' }}>
+        <button className="btn btn-primary" onClick={onSave} disabled={saving || pdfLoading}>
+          {saving ? <span className="spinner" /> : '💾'} Guardar perfil
+        </button>
+        <button
+          className="btn btn-success"
+          onClick={() => setResenaVisible(v => !v)}
+          disabled={!form.razon}
+          title={!form.razon ? 'Cargá al menos la Razón Social' : ''}
+        >
+          {resenaVisible ? '👁 Ocultar reseña' : '📄 Generar reseña'}
+        </button>
+      </div>
+
+      {/* Preview de la reseña + botones PDF */}
+      {resenaVisible && form.razon && (
+        <div id="resena-root" style={{ marginTop:24 }}>
+          {/* Header PDF — oculto en UI normal, visible al capturar */}
+          <div className="pdf-header">
+            <div className="pdf-header-row">
+              <img src="/logo.svg" alt="Fixus" className="pdf-logo" />
+              <div className="pdf-header-title">
+                <div className="pdf-title">Reseña corporativa</div>
+                <div className="pdf-subtitle">Fixus — Consultora para PyMEs</div>
+              </div>
+              <div className="pdf-header-date">{fechaInforme}</div>
+            </div>
+            <div className="pdf-header-meta">
+              <div><strong>Razón social:</strong> {form.razon || '—'}</div>
+              <div><strong>CUIT:</strong> {form.cuit || '—'}</div>
+              <div><strong>Sector:</strong> {form.sector || '—'}</div>
+              <div><strong>Forma jurídica:</strong> {form.forma_juridica || '—'}</div>
+              <div><strong>Ubicación:</strong> {[form.localidad, form.provincia].filter(Boolean).join(', ') || '—'}</div>
+              <div><strong>Empleados:</strong> {form.empleados || '—'}</div>
+            </div>
+            <div className="pdf-divider" />
+          </div>
+
+          <div className="card card--violet">
+            <div className="card-header">
+              <div className="section-dot" />
+              <span className="card-title">Reseña corporativa — {form.razon}</span>
+            </div>
+            <div className="card-body">
+              <div className="memo-box">
+                {resena.map((s, i) => (
+                  <div key={i} className="memo-section">
+                    <div className="memo-title">{s.titulo}</div>
+                    <div className="memo-text" style={{ whiteSpace:'pre-wrap' }}>{s.texto}</div>
+                  </div>
+                ))}
+                <div className="memo-footer">
+                  Reseña generada el {fechaInforme} · Fixus — Consultora para PyMEs · Documento de uso interno
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="action-bar" style={{ marginTop:16, display:'flex', gap:10, flexWrap:'wrap' }}>
+            <button className="btn btn-primary" onClick={() => onPDF('digital')} disabled={pdfLoading} title="PDF continuo para lectura en pantalla">
+              {pdfLoading ? <span className="spinner" /> : '📄'} Descargar PDF
+            </button>
+            <button className="btn btn-ghost" onClick={() => onPDF('imprimible')} disabled={pdfLoading} title="PDF paginado A4 para imprimir">
+              {pdfLoading ? <span className="spinner" /> : '🖨'} PDF imprimible
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function App() {
   const [tab, setTab] = useState('form')
   const [form, setForm] = useState(FORM_EMPTY)
@@ -783,14 +944,96 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [savingCrit, setSavingCrit] = useState(false)
+  // Perfil cualitativo
+  const [perfilForm, setPerfilForm] = useState(PERFIL_EMPTY)
+  const [perfiles, setPerfiles] = useState({}) // dict { [razonNormalizada]: perfil }
+  const [perfilSaving, setPerfilSaving] = useState(false)
+  const [resenaVisible, setResenaVisible] = useState(false)
 
   const showToast = msg => setToast(msg)
 
-  // Cargar pipeline y criterios al inicio
+  // Cargar pipeline, criterios y perfiles al inicio
   useEffect(() => {
     fetch('/api/pipeline').then(r => r.json()).then(d => { if (d.data) setPipeline(d.data) })
     fetch('/api/pipeline?type=criterios').then(r => r.json()).then(d => { if (d.data) setCriterios(d.data) })
+    fetch('/api/pipeline?type=perfiles').then(r => r.json()).then(d => { if (d.data) setPerfiles(d.data) })
   }, [])
+
+  // Busca en el pipeline una empresa cuya razón social coincida (normalizada) con la del perfil
+  const pipelineMatch = useMemo(() => {
+    const key = normalizeRazon(perfilForm.razon)
+    if (!key) return null
+    return pipeline.find(e => normalizeRazon(e.form?.razon) === key) || null
+  }, [perfilForm.razon, pipeline])
+
+  const perfilesList = useMemo(() => {
+    return Object.entries(perfiles)
+      .map(([key, p]) => ({ key, razon: p.razon || key, actualizado_en: p.actualizado_en || '' }))
+      .sort((a, b) => (b.actualizado_en || '').localeCompare(a.actualizado_en || ''))
+  }, [perfiles])
+
+  const guardarPerfil = async () => {
+    if (!perfilForm.razon || !perfilForm.razon.trim()) {
+      showToast('Cargá al menos la Razón Social para guardar el perfil.')
+      return
+    }
+    setPerfilSaving(true)
+    const key = normalizeRazon(perfilForm.razon)
+    const perfil = { ...perfilForm, actualizado_en: new Date().toISOString() }
+    try {
+      await fetch('/api/pipeline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save_perfil', payload: { key, perfil } }),
+      })
+      setPerfiles(prev => ({ ...prev, [key]: perfil }))
+      setPerfilForm(perfil)
+      showToast(`Perfil de "${perfil.razon}" guardado ✓`)
+    } catch (err) {
+      console.error(err)
+      showToast('Error al guardar el perfil')
+    } finally {
+      setPerfilSaving(false)
+    }
+  }
+
+  const cargarPerfil = (key) => {
+    const p = perfiles[key]
+    if (!p) return
+    setPerfilForm({ ...PERFIL_EMPTY, ...p })
+    setResenaVisible(false)
+    showToast(`Perfil de "${p.razon}" cargado`)
+  }
+
+  const nuevoPerfil = () => {
+    setPerfilForm(PERFIL_EMPTY)
+    setResenaVisible(false)
+  }
+
+  const eliminarPerfil = async (key) => {
+    if (!confirm('¿Eliminar este perfil? No se puede deshacer.')) return
+    await fetch('/api/pipeline', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete_perfil', payload: { key } }),
+    })
+    setPerfiles(prev => {
+      const n = { ...prev }
+      delete n[key]
+      return n
+    })
+    // Si el perfil eliminado era el que estaba editándose, limpiar
+    if (normalizeRazon(perfilForm.razon) === key) setPerfilForm(PERFIL_EMPTY)
+    showToast('Perfil eliminado')
+  }
+
+  const generarResenaPDF = (modo) => {
+    generarPDF(modo, {
+      nodeId: 'resena-root',
+      filenameBase: 'Resena-Fixus',
+      razon: perfilForm.razon || 'empresa',
+    })
+  }
 
   const analizar = () => {
     if (!form.razon || !form.ventas) { showToast('Completá al menos la Razón Social y las Ventas.'); return }
@@ -850,12 +1093,14 @@ export default function App() {
     setTab('pipeline')
   }
 
-  // Exporta el PanelResultado como PDF. modo: 'digital' = una sola página continua;
-  // 'imprimible' = multipágina A4 con cortes en zonas blancas (no parte bloques al medio).
-  const generarPDF = async (modo = 'digital') => {
-    if (typeof window === 'undefined' || !resultado) return
+  // Exporta un nodo como PDF. modo: 'digital' = página continua; 'imprimible' = multipágina A4.
+  // opts.nodeId = id del DOM a capturar (default 'pdf-root'); opts.filenameBase = prefijo del archivo;
+  // opts.razon = razón social para el nombre del archivo (default resultado.form.razon)
+  const generarPDF = async (modo = 'digital', opts = {}) => {
+    if (typeof window === 'undefined') return
+    const { nodeId = 'pdf-root', filenameBase = 'Informe-Fixus', razon } = opts
     setPdfLoading(true)
-    const node = document.getElementById('pdf-root')
+    const node = document.getElementById(nodeId)
     if (!node) { setPdfLoading(false); showToast('No se encontró el panel para exportar'); return }
     try {
       const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
@@ -878,7 +1123,8 @@ export default function App() {
       const ratio = A4_W / canvas.width
       const imgH = canvas.height * ratio
       const fecha = new Date().toISOString().slice(0, 10)
-      const safe = (resultado.form.razon || 'informe').replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-|-$/g, '')
+      const razonParaNombre = razon ?? (resultado?.form?.razon) ?? 'informe'
+      const safe = razonParaNombre.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-|-$/g, '')
       // JPEG calidad 0.92 — el texto se ve igual y el archivo pesa ~1/3 del PNG equivalente
       const toImg = c => c.toDataURL('image/jpeg', 0.92)
 
@@ -888,7 +1134,7 @@ export default function App() {
         if (imgH <= MAX_PAGE_H) {
           const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: [A4_W, imgH] })
           pdf.addImage(toImg(canvas), 'JPEG', 0, 0, A4_W, imgH)
-          pdf.save(`Informe-Fixus-${safe}-${fecha}.pdf`)
+          pdf.save(`${filenameBase}-${safe}-${fecha}.pdf`)
           showToast('PDF digital generado ✓')
           return
         }
@@ -907,7 +1153,7 @@ export default function App() {
           pdf.addImage(toImg(slice), 'JPEG', 0, 0, A4_W, sliceH * ratio)
           yOffset += sliceH; firstPage = false
         }
-        pdf.save(`Informe-Fixus-${safe}-${fecha}.pdf`)
+        pdf.save(`${filenameBase}-${safe}-${fecha}.pdf`)
         showToast('PDF digital generado ✓')
         return
       }
@@ -952,7 +1198,7 @@ export default function App() {
         pdf.addImage(toImg(slice), 'JPEG', 0, 0, A4_W, sliceH * ratio)
         yOffset += sliceH; firstPage = false
       }
-      pdf.save(`Informe-Fixus-${safe}-${fecha}-imprimible.pdf`)
+      pdf.save(`${filenameBase}-${safe}-${fecha}-imprimible.pdf`)
       showToast('PDF imprimible generado ✓')
     } catch (err) {
       console.error('Error generando PDF:', err)
@@ -1022,8 +1268,9 @@ export default function App() {
   })
 
   const NAV = [
-    { id:'form',      label:'Nueva empresa',    icon:'＋' },
+    { id:'form',      label:'Nueva empresa',      icon:'＋' },
     { id:'resultado', label:'Resultado análisis', icon:'◎' },
+    { id:'perfil',    label:'Perfil cualitativo', icon:'◉', badge: Object.keys(perfiles).length },
     { id:'criterios', label:'Criterios',          icon:'⚙' },
     { id:'pipeline',  label:'Pipeline',           icon:'◈', badge: pipeline.length },
   ]
@@ -1229,6 +1476,31 @@ export default function App() {
                 <div className="page-sub">Configurá los umbrales que deben cumplir las empresas para avanzar</div>
               </div>
               <PanelCriterios criterios={criterios} setCriterios={setCriterios} onSave={guardarCriterios} saving={savingCrit} />
+            </>
+          )}
+
+          {/* PERFIL CUALITATIVO */}
+          {tab === 'perfil' && (
+            <>
+              <div className="page-header">
+                <div className="page-title">Perfil cualitativo</div>
+                <div className="page-sub">Cargá la información de contexto de la empresa y generá una reseña completa</div>
+              </div>
+              <PanelPerfil
+                form={perfilForm}
+                setForm={setPerfilForm}
+                perfilesList={perfilesList}
+                onLoad={cargarPerfil}
+                onNew={nuevoPerfil}
+                onDelete={eliminarPerfil}
+                onSave={guardarPerfil}
+                saving={perfilSaving}
+                pipelineMatch={pipelineMatch}
+                resenaVisible={resenaVisible}
+                setResenaVisible={setResenaVisible}
+                onPDF={generarResenaPDF}
+                pdfLoading={pdfLoading}
+              />
             </>
           )}
 

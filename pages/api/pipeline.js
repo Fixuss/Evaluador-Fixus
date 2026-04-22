@@ -7,6 +7,7 @@ const kv = new Redis({
 
 const PIPELINE_KEY = 'fixus:pipeline'
 const CRITERIOS_KEY = 'fixus:criterios'
+const PERFILES_KEY = 'fixus:perfiles' // diccionario { [razonNormalizada]: perfil }
 
 export default async function handler(req, res) {
   try {
@@ -16,6 +17,10 @@ export default async function handler(req, res) {
         const data = await kv.get(CRITERIOS_KEY)
         return res.status(200).json({ data: data || null })
       }
+      if (type === 'perfiles') {
+        const data = await kv.get(PERFILES_KEY)
+        return res.status(200).json({ data: data || {} })
+      }
       const data = await kv.get(PIPELINE_KEY)
       return res.status(200).json({ data: data || [] })
     }
@@ -24,6 +29,19 @@ export default async function handler(req, res) {
       const { action, payload } = req.body
       if (action === 'save_criterios') {
         await kv.set(CRITERIOS_KEY, payload)
+        return res.status(200).json({ ok: true })
+      }
+      if (action === 'save_perfil') {
+        // payload = { key: razonNormalizada, perfil: {...} }
+        const perfiles = (await kv.get(PERFILES_KEY)) || {}
+        perfiles[payload.key] = payload.perfil
+        await kv.set(PERFILES_KEY, perfiles)
+        return res.status(200).json({ ok: true, total: Object.keys(perfiles).length })
+      }
+      if (action === 'delete_perfil') {
+        const perfiles = (await kv.get(PERFILES_KEY)) || {}
+        delete perfiles[payload.key]
+        await kv.set(PERFILES_KEY, perfiles)
         return res.status(200).json({ ok: true })
       }
       if (action === 'add') {
