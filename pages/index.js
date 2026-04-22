@@ -494,8 +494,11 @@ function PanelResultado({ resultado, onAgregar, onPDF, loading, pdfLoading }) {
         <button className="btn btn-success" onClick={onAgregar} disabled={loading || pdfLoading}>
           {loading ? <span className="spinner" /> : '✚'} Agregar al pipeline
         </button>
-        <button className="btn btn-primary" onClick={onPDF} disabled={loading || pdfLoading} title="Exporta el informe completo en PDF con el logo de la consultora">
+        <button className="btn btn-primary" onClick={() => onPDF('digital')} disabled={loading || pdfLoading} title="PDF continuo de una sola página, ideal para leer en pantalla">
           {pdfLoading ? <span className="spinner" /> : '📄'} Descargar PDF
+        </button>
+        <button className="btn btn-ghost" onClick={() => onPDF('imprimible')} disabled={loading || pdfLoading} title="PDF paginado en A4 con cortes limpios, listo para imprimir">
+          {pdfLoading ? <span className="spinner" /> : '🖨'} PDF imprimible
         </button>
       </div>
     </div>
@@ -847,8 +850,9 @@ export default function App() {
     setTab('pipeline')
   }
 
-  // Exporta el PanelResultado como PDF multipágina con header (logo + razón social + fecha)
-  const generarPDF = async () => {
+  // Exporta el PanelResultado como PDF. modo: 'digital' = una sola página continua;
+  // 'imprimible' = multipágina A4 con cortes en zonas blancas (no parte bloques al medio).
+  const generarPDF = async (modo = 'digital') => {
     if (typeof window === 'undefined' || !resultado) return
     setPdfLoading(true)
     const node = document.getElementById('pdf-root')
@@ -859,7 +863,7 @@ export default function App() {
         import('html2canvas'),
       ])
       node.classList.add('pdf-capturing')
-      // Pequeña espera para que el navegador aplique los estilos de captura (header visible, spacing)
+      // Pequeña espera para que el navegador aplique los estilos de captura
       await new Promise(res => setTimeout(res, 60))
       const canvas = await html2canvas(node, {
         scale: 2,
@@ -869,48 +873,87 @@ export default function App() {
       })
       node.classList.remove('pdf-capturing')
 
-      // PDF digital: UNA sola página continua (ancho A4, alto = contenido).
-      // Limitamos el alto máximo por página a 14400 pt (~5m) para respetar el cap interno
-      // de jsPDF. Si el contenido excede eso, recién ahí usamos multipágina como fallback.
-      const A4_W = 595.28 // pt (ancho A4 portrait)
+      const A4_W = 595.28
+      const A4_H = 841.89
       const ratio = A4_W / canvas.width
       const imgH = canvas.height * ratio
-      const MAX_PAGE_H = 14400 // pt
+      const fecha = new Date().toISOString().slice(0, 10)
+      const safe = (resultado.form.razon || 'informe').replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-|-$/g, '')
+      // JPEG calidad 0.92 — el texto se ve igual y el archivo pesa ~1/3 del PNG equivalente
+      const toImg = c => c.toDataURL('image/jpeg', 0.92)
 
-      if (imgH <= MAX_PAGE_H) {
-        const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: [A4_W, imgH] })
-        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, A4_W, imgH)
-        const fecha = new Date().toISOString().slice(0, 10)
-        const safe = (resultado.form.razon || 'informe').replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-|-$/g, '')
+      if (modo === 'digital') {
+        // PDF digital: UNA sola página continua (ancho A4, alto = contenido).
+        const MAX_PAGE_H = 14400 // cap interno de jsPDF
+        if (imgH <= MAX_PAGE_H) {
+          const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: [A4_W, imgH] })
+          pdf.addImage(toImg(canvas), 'JPEG', 0, 0, A4_W, imgH)
+          pdf.save(`Informe-Fixus-${safe}-${fecha}.pdf`)
+          showToast('PDF digital generado ✓')
+          return
+        }
+        // Fallback: contenido enorme
+        const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: [A4_W, MAX_PAGE_H] })
+        const pxPorPagina = Math.floor(MAX_PAGE_H / ratio)
+        let yOffset = 0, firstPage = true
+        while (yOffset < canvas.height) {
+          const sliceH = Math.min(pxPorPagina, canvas.height - yOffset)
+          const slice = document.createElement('canvas')
+          slice.width = canvas.width; slice.height = sliceH
+          const ctx = slice.getContext('2d')
+          ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, slice.width, slice.height)
+          ctx.drawImage(canvas, 0, yOffset, canvas.width, sliceH, 0, 0, canvas.width, sliceH)
+          if (!firstPage) pdf.addPage([A4_W, sliceH * ratio], 'p')
+          pdf.addImage(toImg(slice), 'JPEG', 0, 0, A4_W, sliceH * ratio)
+          yOffset += sliceH; firstPage = false
+        }
         pdf.save(`Informe-Fixus-${safe}-${fecha}.pdf`)
-        showToast('PDF generado correctamente ✓')
+        showToast('PDF digital generado ✓')
         return
       }
 
-      // Fallback (contenido enorme): partir en páginas del máximo permitido, sin buscar blancos.
-      const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: [A4_W, MAX_PAGE_H] })
-      const pxPorPagina = Math.floor(MAX_PAGE_H / ratio)
-      let yOffset = 0
-      let firstPage = true
-      while (yOffset < canvas.height) {
-        const sliceH = Math.min(pxPorPagina, canvas.height - yOffset)
-        const slice = document.createElement('canvas')
-        slice.width = canvas.width
-        slice.height = sliceH
-        const ctx = slice.getContext('2d')
-        ctx.fillStyle = '#FFFFFF'
-        ctx.fillRect(0, 0, slice.width, slice.height)
-        ctx.drawImage(canvas, 0, yOffset, canvas.width, sliceH, 0, 0, canvas.width, sliceH)
-        if (!firstPage) pdf.addPage([A4_W, sliceH * ratio], 'p')
-        pdf.addImage(slice.toDataURL('image/png'), 'PNG', 0, 0, A4_W, sliceH * ratio)
-        yOffset += sliceH
-        firstPage = false
+      // modo === 'imprimible' → multipágina A4 con cortes en zonas blancas
+      const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' })
+      const pxPorPagina = Math.floor(A4_H / ratio)
+      const ctxFull = canvas.getContext('2d')
+
+      // Busca una fila casi-blanca retrocediendo desde targetY. Si no encuentra, devuelve targetY.
+      const findCut = (targetY, lookback = 260) => {
+        const from = Math.max(0, targetY - lookback)
+        for (let y = targetY; y >= from; y--) {
+          const row = ctxFull.getImageData(0, y, canvas.width, 1).data
+          let dirty = 0
+          const maxDirty = Math.max(4, Math.floor(canvas.width * 0.01))
+          for (let i = 0; i < row.length; i += 4) {
+            const r = row[i], g = row[i+1], b = row[i+2]
+            if (r < 240 || g < 240 || b < 240) { dirty++; if (dirty > maxDirty) { dirty = -1; break } }
+          }
+          if (dirty !== -1) return y
+        }
+        return targetY
       }
 
-      const fecha = new Date().toISOString().slice(0, 10)
-      const safe = (resultado.form.razon || 'informe').replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-|-$/g, '')
-      pdf.save(`Informe-Fixus-${safe}-${fecha}.pdf`)
-      showToast('PDF generado correctamente ✓')
+      let yOffset = 0, firstPage = true
+      while (yOffset < canvas.height) {
+        let sliceH
+        const remaining = canvas.height - yOffset
+        if (remaining <= pxPorPagina) {
+          sliceH = remaining
+        } else {
+          const softCut = findCut(yOffset + pxPorPagina)
+          sliceH = Math.max(softCut - yOffset, Math.floor(pxPorPagina * 0.6))
+        }
+        const slice = document.createElement('canvas')
+        slice.width = canvas.width; slice.height = sliceH
+        const ctx = slice.getContext('2d')
+        ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, slice.width, slice.height)
+        ctx.drawImage(canvas, 0, yOffset, canvas.width, sliceH, 0, 0, canvas.width, sliceH)
+        if (!firstPage) pdf.addPage()
+        pdf.addImage(toImg(slice), 'JPEG', 0, 0, A4_W, sliceH * ratio)
+        yOffset += sliceH; firstPage = false
+      }
+      pdf.save(`Informe-Fixus-${safe}-${fecha}-imprimible.pdf`)
+      showToast('PDF imprimible generado ✓')
     } catch (err) {
       console.error('Error generando PDF:', err)
       showToast('No se pudo generar el PDF. Revisá la consola.')
