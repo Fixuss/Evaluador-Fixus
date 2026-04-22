@@ -869,65 +869,42 @@ export default function App() {
       })
       node.classList.remove('pdf-capturing')
 
-      const pdf = new jsPDF('p', 'pt', 'a4')
-      const pageW = pdf.internal.pageSize.getWidth()
-      const pageH = pdf.internal.pageSize.getHeight()
-      const ratio = pageW / canvas.width
+      // PDF digital: UNA sola página continua (ancho A4, alto = contenido).
+      // Limitamos el alto máximo por página a 14400 pt (~5m) para respetar el cap interno
+      // de jsPDF. Si el contenido excede eso, recién ahí usamos multipágina como fallback.
+      const A4_W = 595.28 // pt (ancho A4 portrait)
+      const ratio = A4_W / canvas.width
       const imgH = canvas.height * ratio
+      const MAX_PAGE_H = 14400 // pt
 
-      if (imgH <= pageH) {
-        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, pageW, imgH)
-      } else {
-        // Cortar en páginas buscando filas blancas para NO partir elementos a la mitad.
-        const pxPorPagina = Math.floor(pageH / ratio)
-        const ctxFull = canvas.getContext('2d')
+      if (imgH <= MAX_PAGE_H) {
+        const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: [A4_W, imgH] })
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, A4_W, imgH)
+        const fecha = new Date().toISOString().slice(0, 10)
+        const safe = (resultado.form.razon || 'informe').replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-|-$/g, '')
+        pdf.save(`Informe-Fixus-${safe}-${fecha}.pdf`)
+        showToast('PDF generado correctamente ✓')
+        return
+      }
 
-        // Devuelve el y más cercano <= targetY donde hay una fila "casi blanca" (espacio entre bloques).
-        // Retrocede hasta lookback píxeles. Si no encuentra, devuelve targetY (fallback al corte duro).
-        const findCut = (targetY, lookback = 260) => {
-          const from = Math.max(0, targetY - lookback)
-          for (let y = targetY; y >= from; y--) {
-            const row = ctxFull.getImageData(0, y, canvas.width, 1).data
-            let white = true
-            // Contamos píxeles "no blancos"; toleramos un 1% de ruido para evitar bordes anti-alias.
-            let dirty = 0
-            const maxDirty = Math.max(4, Math.floor(canvas.width * 0.01))
-            for (let i = 0; i < row.length; i += 4) {
-              const r = row[i], g = row[i+1], b = row[i+2]
-              if (r < 240 || g < 240 || b < 240) {
-                dirty++
-                if (dirty > maxDirty) { white = false; break }
-              }
-            }
-            if (white) return y
-          }
-          return targetY
-        }
-
-        let yOffset = 0
-        let firstPage = true
-        while (yOffset < canvas.height) {
-          let sliceH
-          const remaining = canvas.height - yOffset
-          if (remaining <= pxPorPagina) {
-            sliceH = remaining // última página
-          } else {
-            const hardCut = yOffset + pxPorPagina
-            const softCut = findCut(hardCut)
-            sliceH = Math.max(softCut - yOffset, Math.floor(pxPorPagina * 0.6)) // al menos 60% de página para no desperdiciar
-          }
-          const slice = document.createElement('canvas')
-          slice.width = canvas.width
-          slice.height = sliceH
-          const ctx = slice.getContext('2d')
-          ctx.fillStyle = '#FFFFFF'
-          ctx.fillRect(0, 0, slice.width, slice.height)
-          ctx.drawImage(canvas, 0, yOffset, canvas.width, sliceH, 0, 0, canvas.width, sliceH)
-          if (!firstPage) pdf.addPage()
-          pdf.addImage(slice.toDataURL('image/png'), 'PNG', 0, 0, pageW, sliceH * ratio)
-          yOffset += sliceH
-          firstPage = false
-        }
+      // Fallback (contenido enorme): partir en páginas del máximo permitido, sin buscar blancos.
+      const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: [A4_W, MAX_PAGE_H] })
+      const pxPorPagina = Math.floor(MAX_PAGE_H / ratio)
+      let yOffset = 0
+      let firstPage = true
+      while (yOffset < canvas.height) {
+        const sliceH = Math.min(pxPorPagina, canvas.height - yOffset)
+        const slice = document.createElement('canvas')
+        slice.width = canvas.width
+        slice.height = sliceH
+        const ctx = slice.getContext('2d')
+        ctx.fillStyle = '#FFFFFF'
+        ctx.fillRect(0, 0, slice.width, slice.height)
+        ctx.drawImage(canvas, 0, yOffset, canvas.width, sliceH, 0, 0, canvas.width, sliceH)
+        if (!firstPage) pdf.addPage([A4_W, sliceH * ratio], 'p')
+        pdf.addImage(slice.toDataURL('image/png'), 'PNG', 0, 0, A4_W, sliceH * ratio)
+        yOffset += sliceH
+        firstPage = false
       }
 
       const fecha = new Date().toISOString().slice(0, 10)
