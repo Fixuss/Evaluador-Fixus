@@ -20,6 +20,7 @@ const FORM_EMPTY = {
   act_co:'', act_nco:'', caja:'', pas_co:'', pas_nco:'', pn:'',
   dcp:'', dlp:'',
   m1:'', m2:'', m3:'', m4:'', m5:'', m6:'',
+  m7:'', m8:'', m9:'', m10:'', m11:'', m12:'',
 }
 
 // Convierte cualquier valor del form a número (vacío/NaN → 0) para los cálculos
@@ -386,10 +387,10 @@ export default function App() {
   const analizar = () => {
     if (!form.razon || !form.ventas) { showToast('Completá al menos la Razón Social y las Ventas.'); return }
     // Sanitizar: convertir campos numéricos vacíos a 0 antes de calcular
-    const numKeys = ['antiguedad','fin_sol','ventas_ant','ebitda_ant','deuda_ant','ventas','cmv','gastos_op','amort','res_fin','imp','act_co','act_nco','caja','pas_co','pas_nco','pn','dcp','dlp','m1','m2','m3','m4','m5','m6']
+    const numKeys = ['antiguedad','fin_sol','ventas_ant','ebitda_ant','deuda_ant','ventas','cmv','gastos_op','amort','res_fin','imp','act_co','act_nco','caja','pas_co','pas_nco','pn','dcp','dlp','m1','m2','m3','m4','m5','m6','m7','m8','m9','m10','m11','m12']
     const formNum = { ...form }
     numKeys.forEach(k => { formNum[k] = toNum(form[k]) })
-    const meses_post = [formNum.m1, formNum.m2, formNum.m3, formNum.m4, formNum.m5, formNum.m6]
+    const meses_post = [formNum.m1, formNum.m2, formNum.m3, formNum.m4, formNum.m5, formNum.m6, formNum.m7, formNum.m8, formNum.m9, formNum.m10, formNum.m11, formNum.m12]
     const r = calcularRatios({ ...formNum, meses_post })
     const elig = evalElegibilidad(r, formNum.antiguedad, formNum.fin_sol, criterios)
     setResultado({ r, elig, form: { ...formNum, razon: form.razon, cuit: form.cuit, sector: form.sector, destino: form.destino } })
@@ -459,6 +460,7 @@ export default function App() {
     act_co:32000, act_nco:28000, caja:5500, pas_co:18000, pas_nco:15000, pn:27000,
     dcp:8000, dlp:12000,
     m1:7200, m2:7500, m3:7900, m4:8100, m5:8400, m6:8800,
+    m7:9100, m8:9300, m9:9600, m10:9800, m11:10100, m12:10400,
   })
 
   const NAV = [
@@ -562,10 +564,10 @@ export default function App() {
               </div>
 
               <div className="card section-gap card--amber">
-                <div className="card-header"><div className="section-dot" /><span className="card-title">Ventas mensuales post-balance ($K) — Mes 1 = más antiguo</span></div>
+                <div className="card-header"><div className="section-dot" /><span className="card-title">Ventas mensuales post-balance — 12 meses ($K) — Mes 1 = más antiguo</span></div>
                 <div className="card-body">
                   <div className="form-grid-6">
-                    {['m1','m2','m3','m4','m5','m6'].map((id,i) => (
+                    {['m1','m2','m3','m4','m5','m6','m7','m8','m9','m10','m11','m12'].map((id,i) => (
                       <Campo key={id} label={`Mes ${i+1}`} id={id} form={form} setForm={setForm} />
                     ))}
                   </div>
@@ -575,7 +577,7 @@ export default function App() {
               <div style={{ display:'flex', gap:12, marginTop:24 }}>
                 <button className="btn btn-primary" onClick={analizar}>▶ Analizar empresa</button>
                 <button className="btn btn-ghost" onClick={cargarEjemplo}>Cargar ejemplo demo</button>
-                <button className="btn btn-ghost" onClick={() => setForm(FORM_EMPTY)}>↺ Limpiar</button>
+                <button className="btn btn-ghost-danger" onClick={() => setForm(FORM_EMPTY)}>↺ Limpiar</button>
               </div>
             </>
           )}
