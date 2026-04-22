@@ -20,6 +20,7 @@ const FORM_EMPTY = {
   ventas:'', cmv:'', gastos_op:'', amort:'', res_fin:'', imp:'',
   act_co:'', act_nco:'', caja:'', pas_co:'', pas_nco:'', pn:'',
   dcp:'', dlp:'',
+  deuda_post:'',
   m1:'', m2:'', m3:'', m4:'', m5:'', m6:'',
   m7:'', m8:'', m9:'', m10:'', m11:'', m12:'',
   m13:'', m14:'', m15:'', m16:'', m17:'', m18:'',
@@ -135,9 +136,29 @@ function PanelResultado({ resultado, onAgregar, loading }) {
       {/* Métricas clave */}
       <div className="metrics-grid">
         <div className="metric-card">
-          <div className="metric-label">Deuda / ventas</div>
-          <div className={`metric-value ${r.deuda_meses_ventas <= 4 ? 'good' : r.deuda_meses_ventas <= 5 ? 'warn' : 'bad'}`}>{r.deuda_meses_ventas.toFixed(1)}m</div>
-          <div style={{fontSize:11,color:'#94A3B8',marginTop:3}}>meses de ventas</div>
+          <div className="metric-label">Deuda / ventas {r.tiene_deuda_post ? '(post)' : ''}</div>
+          {r.tiene_deuda_post ? (
+            <>
+              <div className={`metric-value ${r.deuda_meses_post <= 4 ? 'good' : r.deuda_meses_post <= 5 ? 'warn' : 'bad'}`}>{r.deuda_meses_post.toFixed(1)}m</div>
+              <div style={{fontSize:11,color:'#94A3B8',marginTop:3}}>
+                balance: {r.deuda_meses_ventas.toFixed(1)}m
+                {r.var_deuda !== null && (
+                  <span style={{
+                    marginLeft:6,
+                    color: r.var_deuda > 10 ? '#DC2626' : r.var_deuda < -5 ? '#059669' : '#64748B',
+                    fontWeight:500
+                  }}>
+                    ({r.var_deuda >= 0 ? '+' : ''}{r.var_deuda.toFixed(0)}%)
+                  </span>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className={`metric-value ${r.deuda_meses_ventas <= 4 ? 'good' : r.deuda_meses_ventas <= 5 ? 'warn' : 'bad'}`}>{r.deuda_meses_ventas.toFixed(1)}m</div>
+              <div style={{fontSize:11,color:'#94A3B8',marginTop:3}}>meses de ventas (balance)</div>
+            </>
+          )}
         </div>
         <div className="metric-card">
           <div className="metric-label">Deuda / EBITDA</div>
@@ -206,6 +227,11 @@ function PanelResultado({ resultado, onAgregar, loading }) {
               ['Patrimonio neto', fmtK(form.pn)],
               ['Liquidez corriente', r.liquidez.toFixed(2) + 'x'],
               ['Endeudamiento (P/PN)', r.endeudamiento.toFixed(2) + 'x'],
+              ['Deuda financiera (balance)', fmtK(r.deuda_fin) + ' · ' + r.deuda_meses_ventas.toFixed(2) + 'm'],
+              ...(r.tiene_deuda_post ? [
+                ['Deuda financiera (post-balance)', fmtK(r.deuda_post) + ' · ' + r.deuda_meses_post.toFixed(2) + 'm'],
+                ['Variación de deuda', (r.var_deuda >= 0 ? '+' : '') + r.var_deuda.toFixed(1) + '%'],
+              ] : []),
             ].map(([k,v]) => (
               <div key={k} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid #F1F5F9',fontSize:13}}>
                 <span style={{color:'#64748B'}}>{k}</span><span style={{fontWeight:500}}>{v}</span>
@@ -223,8 +249,9 @@ function PanelResultado({ resultado, onAgregar, loading }) {
             {form.razon} ({form.sector || 'sin sector'}) — {form.antiguedad} años de antigüedad.{' '}
             Ventas: {fmtK(form.ventas)} | EBITDA: {fmtK(r.ebitda)} ({r.margen_ebitda.toFixed(1)}%) | Resultado neto: {fmtK(r.res_neto)}.{' '}
             Capital de trabajo: {fmtK(r.capital_trabajo)} | Liquidez: {r.liquidez.toFixed(2)}x | Endeudamiento: {r.endeudamiento.toFixed(2)}x.{' '}
-            Deuda financiera: {fmtK(r.deuda_fin)} = {r.deuda_meses_ventas.toFixed(1)} meses de ventas actuales
+            Deuda financiera (balance): {fmtK(r.deuda_fin)} = {r.deuda_meses_ventas.toFixed(1)} meses de ventas actuales
             {r.ebitda_mens > 0 ? ` y ${r.deuda_meses_ebitda.toFixed(1)} meses de EBITDA` : ''}.{' '}
+            {r.tiene_deuda_post ? `Deuda post-balance: ${fmtK(r.deuda_post)} = ${r.deuda_meses_post.toFixed(1)} meses de ventas (${r.var_deuda >= 0 ? '+' : ''}${r.var_deuda.toFixed(1)}% vs. balance). ` : ''}
             {r.tiene_ant ? `Variación de ventas interanual: ${r.var_ventas >= 0 ? '+' : ''}${r.var_ventas.toFixed(1)}%. ` : ''}
             {r.tiene_tend ? `Tendencia post-balance: ${r.pct_alza.toFixed(0)}% de meses con alza. ` : ''}
             Score de elegibilidad: {elig.score}/100 ({elig.pasados}/{elig.total} criterios).
@@ -419,13 +446,13 @@ export default function App() {
     if (!form.razon || !form.ventas) { showToast('Completá al menos la Razón Social y las Ventas.'); return }
     // IDs de meses (todos los posibles) + resto de campos numéricos
     const monthIds = Array.from({ length: 24 }, (_, i) => `m${i+1}`)
-    const numKeys = ['antiguedad','fin_sol','ventas_ant','ebitda_ant','deuda_ant','ventas','cmv','gastos_op','amort','res_fin','imp','act_co','act_nco','caja','pas_co','pas_nco','pn','dcp','dlp', ...monthIds]
+    const numKeys = ['antiguedad','fin_sol','ventas_ant','ebitda_ant','deuda_ant','ventas','cmv','gastos_op','amort','res_fin','imp','act_co','act_nco','caja','pas_co','pas_nco','pn','dcp','dlp','deuda_post', ...monthIds]
     const formNum = { ...form }
     numKeys.forEach(k => { formNum[k] = toNum(form[k]) })
     // Si hay fecha de cierre, tomamos solo los meses que correspondan; si no, los 12 clásicos.
     const monthsForCalc = computePostBalanceMonths(form.cierre_ejercicio, form.incluir_mes_actual) ?? FALLBACK_MONTHS
     const meses_post = monthsForCalc.map(m => formNum[m.id] || 0)
-    const r = calcularRatios({ ...formNum, meses_post })
+    const r = calcularRatios({ ...formNum, meses_post, deuda_post: formNum.deuda_post })
     const elig = evalElegibilidad(r, formNum.antiguedad, formNum.fin_sol, criterios)
     setResultado({ r, elig, form: { ...formNum, razon: form.razon, cuit: form.cuit, sector: form.sector, destino: form.destino, cierre_ejercicio: form.cierre_ejercicio, incluir_mes_actual: form.incluir_mes_actual } })
     setTab('resultado')
@@ -495,6 +522,7 @@ export default function App() {
     ventas:85000, cmv:52000, gastos_op:12000, amort:3500, res_fin:-4200, imp:4500,
     act_co:32000, act_nco:28000, caja:5500, pas_co:18000, pas_nco:15000, pn:27000,
     dcp:8000, dlp:12000,
+    deuda_post:22500, // crece ~12% vs balance, escenario realista
     m1:7200, m2:7500, m3:7900, m4:8100, m5:8400, m6:8800,
     m7:9100, m8:9300, m9:9600, m10:9800, m11:10100, m12:10400,
   })
@@ -627,36 +655,42 @@ export default function App() {
 
                   {(() => {
                     const pm = computePostBalanceMonths(form.cierre_ejercicio, form.incluir_mes_actual)
-                    if (pm === null) {
-                      return (
-                        <>
-                          <div style={{ fontSize:13, color:'var(--ink-3)', marginBottom:10, padding:'8px 12px', background:'#F1F5F9', borderRadius:8, borderLeft:'3px solid var(--accent)' }}>
-                            Cargá la fecha de cierre arriba para generar los meses automáticamente. Mientras tanto, mostrando 12 meses genéricos.
-                          </div>
-                          <div className="form-grid-6">
-                            {FALLBACK_MONTHS.map(m => (
-                              <Campo key={m.id} label={m.label} id={m.id} form={form} setForm={setForm} />
-                            ))}
-                          </div>
-                        </>
-                      )
-                    }
-                    if (pm.length === 0) {
+                    const visibleMonths = pm === null ? FALLBACK_MONTHS : pm
+                    const lastLabel = visibleMonths.length > 0 ? visibleMonths[visibleMonths.length - 1].label : 'último mes'
+
+                    if (pm && pm.length === 0) {
                       return (
                         <div style={{ fontSize:13, color:'#92400E', padding:'10px 14px', background:'#FEF3C7', borderRadius:8, borderLeft:'3px solid var(--amber)' }}>
                           La fecha de cierre es muy reciente o futura. No hay meses post-balance para completar todavía.
                         </div>
                       )
                     }
+
                     return (
                       <>
-                        <div style={{ fontSize:12, color:'var(--ink-3)', marginBottom:10 }}>
-                          {pm.length} {pm.length === 1 ? 'mes' : 'meses'} desde el cierre · <strong>{pm[0].label}</strong> → <strong>{pm[pm.length-1].label}</strong>
-                        </div>
+                        {pm === null ? (
+                          <div style={{ fontSize:13, color:'var(--ink-3)', marginBottom:10, padding:'8px 12px', background:'#F1F5F9', borderRadius:8, borderLeft:'3px solid var(--accent)' }}>
+                            Cargá la fecha de cierre arriba para generar los meses automáticamente. Mientras tanto, mostrando 12 meses genéricos.
+                          </div>
+                        ) : (
+                          <div style={{ fontSize:12, color:'var(--ink-3)', marginBottom:10 }}>
+                            {pm.length} {pm.length === 1 ? 'mes' : 'meses'} desde el cierre · <strong>{pm[0].label}</strong> → <strong>{pm[pm.length-1].label}</strong>
+                          </div>
+                        )}
                         <div className="form-grid-6">
-                          {pm.map(m => (
+                          {visibleMonths.map(m => (
                             <Campo key={m.id} label={m.label} id={m.id} form={form} setForm={setForm} />
                           ))}
+                        </div>
+
+                        {/* Deuda al último mes post-balance */}
+                        <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px dashed var(--gray-200)' }}>
+                          <div style={{ fontSize:12, color:'var(--ink-3)', marginBottom:8 }}>
+                            Para ver la relación deuda/ventas actualizada al cierre del último mes cargado:
+                          </div>
+                          <div className="form-grid-3">
+                            <Campo label={`Deuda total al ${lastLabel} ($K)`} id="deuda_post" form={form} setForm={setForm} placeholder="Ej: 19000" />
+                          </div>
                         </div>
                       </>
                     )
