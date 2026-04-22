@@ -640,8 +640,8 @@ export default function App() {
     const monthsForCalc = computePostBalanceMonths(form.cierre_ejercicio, form.incluir_mes_actual) ?? FALLBACK_MONTHS
     const meses_post = monthsForCalc.map(m => formNum[m.id] || 0)
     const r = calcularRatios({ ...formNum, meses_post, deuda_post: formNum.deuda_post })
-    const elig = evalElegibilidad(r, formNum.antiguedad, formNum.fin_sol, criterios)
-    // Préstamo sugerido: días de ventas promedio post-balance (/30 para ventas diarias) — CP y LP son opciones alternativas
+    // Préstamo sugerido: días de ventas promedio post-balance (/30 para ventas diarias) — CP y LP son opciones alternativas.
+    // Se calcula ANTES de evalElegibilidad para poder comparar el financiamiento solicitado con el monto sugerido.
     const diarias = r.ventas_mens / 30
     const raw_cp = diarias * criterios.dias_cp_sug
     const raw_lp = diarias * criterios.dias_lp_sug
@@ -654,6 +654,7 @@ export default function App() {
       : null
     const prestamo = {
       cp, lp, cp_raw: raw_cp, lp_raw: raw_lp,
+      sugerido_max,
       cp_capeado: raw_cp > cap && r.ebitda_mens > 0,
       lp_capeado: raw_lp > cap && r.ebitda_mens > 0,
       cap_activo: r.ebitda_mens > 0,
@@ -662,6 +663,7 @@ export default function App() {
       cobertura_max_ebitda: criterios.cobertura_max_ebitda,
       comparacion: comparacion_fin,
     }
+    const elig = evalElegibilidad(r, formNum.antiguedad, formNum.fin_sol, criterios, prestamo)
     setResultado({ r, elig, prestamo, form: { ...formNum, razon: form.razon, cuit: form.cuit, sector: form.sector, destino: form.destino, cierre_ejercicio: form.cierre_ejercicio, incluir_mes_actual: form.incluir_mes_actual } })
     setTab('resultado')
   }
