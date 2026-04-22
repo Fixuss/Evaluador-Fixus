@@ -15,12 +15,43 @@ function Toast({ msg, onDone }) {
 const FORM_EMPTY = {
   razon:'', cuit:'', sector:'', destino:'',
   antiguedad:'', fin_sol:'',
+  cierre_ejercicio:'', incluir_mes_actual:false,
   ventas_ant:'', ebitda_ant:'', deuda_ant:'',
   ventas:'', cmv:'', gastos_op:'', amort:'', res_fin:'', imp:'',
   act_co:'', act_nco:'', caja:'', pas_co:'', pas_nco:'', pn:'',
   dcp:'', dlp:'',
   m1:'', m2:'', m3:'', m4:'', m5:'', m6:'',
   m7:'', m8:'', m9:'', m10:'', m11:'', m12:'',
+  m13:'', m14:'', m15:'', m16:'', m17:'', m18:'',
+  m19:'', m20:'', m21:'', m22:'', m23:'', m24:'',
+}
+
+const MES_CORTO = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+const FALLBACK_MONTHS = Array.from({ length: 12 }, (_, i) => ({ id: `m${i+1}`, label: `Mes ${i+1}` }))
+
+// Devuelve el array de meses post-balance según fecha de cierre y preferencia del usuario.
+// Null si no se cargó fecha → fallback a 12 meses genéricos.
+function computePostBalanceMonths(cierreISO, incluirActual = false, hoy = new Date()) {
+  if (!cierreISO) return null
+  const [y, m] = cierreISO.split('-').map(Number)
+  if (!y || !m) return null
+  // Arranca el mes siguiente al cierre (m es 1-12, mes siguiente en 0-index es m)
+  const cursor = new Date(y, m, 1)
+  const endYear = hoy.getFullYear()
+  const endMonth = incluirActual ? hoy.getMonth() : hoy.getMonth() - 1 // 0-index
+  const end = new Date(endYear, endMonth, 1)
+  if (end < cursor) return [] // cierre futuro o demasiado reciente
+  const months = []
+  let idx = 1
+  while (cursor <= end && idx <= 24) {
+    months.push({
+      id: `m${idx}`,
+      label: `${MES_CORTO[cursor.getMonth()]} ${String(cursor.getFullYear()).slice(2)}`,
+    })
+    cursor.setMonth(cursor.getMonth() + 1)
+    idx++
+  }
+  return months
 }
 
 // Convierte cualquier valor del form a número (vacío/NaN → 0) para los cálculos
@@ -386,14 +417,17 @@ export default function App() {
 
   const analizar = () => {
     if (!form.razon || !form.ventas) { showToast('Completá al menos la Razón Social y las Ventas.'); return }
-    // Sanitizar: convertir campos numéricos vacíos a 0 antes de calcular
-    const numKeys = ['antiguedad','fin_sol','ventas_ant','ebitda_ant','deuda_ant','ventas','cmv','gastos_op','amort','res_fin','imp','act_co','act_nco','caja','pas_co','pas_nco','pn','dcp','dlp','m1','m2','m3','m4','m5','m6','m7','m8','m9','m10','m11','m12']
+    // IDs de meses (todos los posibles) + resto de campos numéricos
+    const monthIds = Array.from({ length: 24 }, (_, i) => `m${i+1}`)
+    const numKeys = ['antiguedad','fin_sol','ventas_ant','ebitda_ant','deuda_ant','ventas','cmv','gastos_op','amort','res_fin','imp','act_co','act_nco','caja','pas_co','pas_nco','pn','dcp','dlp', ...monthIds]
     const formNum = { ...form }
     numKeys.forEach(k => { formNum[k] = toNum(form[k]) })
-    const meses_post = [formNum.m1, formNum.m2, formNum.m3, formNum.m4, formNum.m5, formNum.m6, formNum.m7, formNum.m8, formNum.m9, formNum.m10, formNum.m11, formNum.m12]
+    // Si hay fecha de cierre, tomamos solo los meses que correspondan; si no, los 12 clásicos.
+    const monthsForCalc = computePostBalanceMonths(form.cierre_ejercicio, form.incluir_mes_actual) ?? FALLBACK_MONTHS
+    const meses_post = monthsForCalc.map(m => formNum[m.id] || 0)
     const r = calcularRatios({ ...formNum, meses_post })
     const elig = evalElegibilidad(r, formNum.antiguedad, formNum.fin_sol, criterios)
-    setResultado({ r, elig, form: { ...formNum, razon: form.razon, cuit: form.cuit, sector: form.sector, destino: form.destino } })
+    setResultado({ r, elig, form: { ...formNum, razon: form.razon, cuit: form.cuit, sector: form.sector, destino: form.destino, cierre_ejercicio: form.cierre_ejercicio, incluir_mes_actual: form.incluir_mes_actual } })
     setTab('resultado')
   }
 
@@ -453,8 +487,10 @@ export default function App() {
   }
 
   const cargarEjemplo = () => setForm({
+    ...FORM_EMPTY,
     razon:'Metalúrgica del Sur S.A.', cuit:'30-71234567-9', sector:'Manufactura metalmecánica', destino:'Capital de trabajo y maquinaria',
     antiguedad:12, fin_sol:10000,
+    cierre_ejercicio:'2025-03', incluir_mes_actual:false, // Abr 2025 → Mar 2026 = 12 meses completos
     ventas_ant:78000, ebitda_ant:10200, deuda_ant:18000,
     ventas:85000, cmv:52000, gastos_op:12000, amort:3500, res_fin:-4200, imp:4500,
     act_co:32000, act_nco:28000, caja:5500, pas_co:18000, pas_nco:15000, pn:27000,
@@ -564,13 +600,67 @@ export default function App() {
               </div>
 
               <div className="card section-gap card--amber">
-                <div className="card-header"><div className="section-dot" /><span className="card-title">Ventas mensuales post-balance — 12 meses ($K) — Mes 1 = más antiguo</span></div>
+                <div className="card-header"><div className="section-dot" /><span className="card-title">Ventas mensuales post-balance ($K)</span></div>
                 <div className="card-body">
-                  <div className="form-grid-6">
-                    {['m1','m2','m3','m4','m5','m6','m7','m8','m9','m10','m11','m12'].map((id,i) => (
-                      <Campo key={id} label={`Mes ${i+1}`} id={id} form={form} setForm={setForm} />
-                    ))}
+                  <div className="form-grid" style={{ marginBottom: 14 }}>
+                    <div className="field">
+                      <label htmlFor="cierre_ejercicio">Fecha de cierre de ejercicio</label>
+                      <input
+                        id="cierre_ejercicio"
+                        type="month"
+                        value={form.cierre_ejercicio || ''}
+                        onChange={e => setForm(f => ({ ...f, cierre_ejercicio: e.target.value }))}
+                      />
+                    </div>
+                    <div className="field" style={{ justifyContent:'flex-end' }}>
+                      <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontWeight:500, color:'var(--ink-2)' }}>
+                        <input
+                          type="checkbox"
+                          checked={!!form.incluir_mes_actual}
+                          onChange={e => setForm(f => ({ ...f, incluir_mes_actual: e.target.checked }))}
+                          style={{ width:16, height:16, cursor:'pointer' }}
+                        />
+                        <span>Incluir mes actual (parcial)</span>
+                      </label>
+                    </div>
                   </div>
+
+                  {(() => {
+                    const pm = computePostBalanceMonths(form.cierre_ejercicio, form.incluir_mes_actual)
+                    if (pm === null) {
+                      return (
+                        <>
+                          <div style={{ fontSize:13, color:'var(--ink-3)', marginBottom:10, padding:'8px 12px', background:'#F1F5F9', borderRadius:8, borderLeft:'3px solid var(--accent)' }}>
+                            Cargá la fecha de cierre arriba para generar los meses automáticamente. Mientras tanto, mostrando 12 meses genéricos.
+                          </div>
+                          <div className="form-grid-6">
+                            {FALLBACK_MONTHS.map(m => (
+                              <Campo key={m.id} label={m.label} id={m.id} form={form} setForm={setForm} />
+                            ))}
+                          </div>
+                        </>
+                      )
+                    }
+                    if (pm.length === 0) {
+                      return (
+                        <div style={{ fontSize:13, color:'#92400E', padding:'10px 14px', background:'#FEF3C7', borderRadius:8, borderLeft:'3px solid var(--amber)' }}>
+                          La fecha de cierre es muy reciente o futura. No hay meses post-balance para completar todavía.
+                        </div>
+                      )
+                    }
+                    return (
+                      <>
+                        <div style={{ fontSize:12, color:'var(--ink-3)', marginBottom:10 }}>
+                          {pm.length} {pm.length === 1 ? 'mes' : 'meses'} desde el cierre · <strong>{pm[0].label}</strong> → <strong>{pm[pm.length-1].label}</strong>
+                        </div>
+                        <div className="form-grid-6">
+                          {pm.map(m => (
+                            <Campo key={m.id} label={m.label} id={m.id} form={form} setForm={setForm} />
+                          ))}
+                        </div>
+                      </>
+                    )
+                  })()}
                 </div>
               </div>
 
