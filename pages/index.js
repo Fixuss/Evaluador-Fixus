@@ -158,13 +158,13 @@ function EbitdaCalcAnt({ form, setForm }) {
       {expanded && (
         <div style={{ marginTop:12, padding:16, background:'#F8FAFC', borderRadius:10, border:'1px solid #E2E8F0' }}>
           <div style={{ fontSize:11, fontWeight:600, color:'#617ECA', marginBottom:10, textTransform:'uppercase', letterSpacing:'.06em' }}>
-            Ventas − CMV − Gastos operativos + Amortizaciones
+            Resultado bruto − Gs. Adm. − Gs. Comerc. + Amortizaciones
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10 }}>
             {[
-              ['Ventas ant.', cv, setCv],
-              ['CMV / Costo ventas', cc, setCc],
-              ['Gastos operativos', cg, setCg],
+              ['Resultado bruto', cv, setCv],
+              ['Gastos de adm.', cc, setCc],
+              ['Gastos de comerc.', cg, setCg],
               ['Amortizaciones', ca, setCa],
             ].map(([lbl, val, setter]) => (
               <div className="field" key={lbl} style={{ margin:0 }}>
