@@ -1125,6 +1125,8 @@ export default function App() {
 
   const subirBalance = async (file) => {
     if (!file || file.type !== 'application/pdf') { showToast('Seleccioná un archivo PDF válido.'); return }
+    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY
+    if (!apiKey) { showToast('Falta configurar la API key de Gemini en Vercel.'); return }
     setPdfLoading(true)
     showToast('Leyendo el balance… esto puede tardar unos segundos.')
     try {
@@ -1134,14 +1136,31 @@ export default function App() {
         reader.onerror = reject
         reader.readAsDataURL(file)
       })
-      const res = await fetch('/api/extract-balance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pdfBase64: base64 }),
-      })
-      const { data, error } = await res.json()
-      if (error) { showToast('Error al leer el PDF: ' + error); return }
-      // Completar solo los campos que se encontraron (no pisar los que el usuario ya ingresó)
+
+      const prompt = `Sos un experto contable argentino. Analizá este balance y estado de resultados y extraé los valores en MILES DE PESOS ($K). Si los valores están en pesos (números grandes), dividí por 1000.
+Campos: ventas_ant (ventas ej. anterior), ventas (ventas último ej.), ebitda_ej (EBITDA último ej. = resultado bruto - gs.adm - gs.comerc + amort), act_co (activo corriente), act_nco (activo no corriente), pas_co (pasivo corriente), pas_nco (pasivo no corriente), pn (patrimonio neto), dcp (deuda bancaria CP), dlp (deuda bancaria LP).
+Respondé SOLO con JSON válido, sin markdown. Usá null si no encontrás el valor.
+Formato: {"ventas_ant":null,"ventas":null,"ebitda_ej":null,"act_co":null,"act_nco":null,"pas_co":null,"pas_nco":null,"pn":null,"dcp":null,"dlp":null}`
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [
+              { inline_data: { mime_type: 'application/pdf', data: base64 } },
+              { text: prompt }
+            ]}]
+          }),
+        }
+      )
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error?.message || 'Error Gemini API')
+      const raw = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? ''
+      const match = raw.match(/\{[\s\S]*\}/)
+      if (!match) throw new Error('No se pudo leer la respuesta de la IA.')
+      const data = JSON.parse(match[0])
       const CAMPOS = ['ventas_ant','ventas','ebitda_ej','act_co','act_nco','pas_co','pas_nco','pn','dcp','dlp']
       const update = {}
       let encontrados = 0
@@ -1149,7 +1168,7 @@ export default function App() {
       setForm(f => ({ ...f, ...update }))
       showToast(`✓ Se completaron ${encontrados} de ${CAMPOS.length} campos desde el PDF.`)
     } catch (e) {
-      showToast('No se pudo procesar el PDF.')
+      showToast('Error al procesar el PDF: ' + e.message)
     } finally {
       setPdfLoading(false)
     }
