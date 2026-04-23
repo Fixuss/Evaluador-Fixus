@@ -1123,6 +1123,38 @@ export default function App() {
     })
   }
 
+  const subirBalance = async (file) => {
+    if (!file || file.type !== 'application/pdf') { showToast('Seleccioná un archivo PDF válido.'); return }
+    setPdfLoading(true)
+    showToast('Leyendo el balance… esto puede tardar unos segundos.')
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result.split(',')[1])
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+      const res = await fetch('/api/extract-balance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pdfBase64: base64 }),
+      })
+      const { data, error } = await res.json()
+      if (error) { showToast('Error al leer el PDF: ' + error); return }
+      // Completar solo los campos que se encontraron (no pisar los que el usuario ya ingresó)
+      const CAMPOS = ['ventas_ant','ventas','ebitda_ej','act_co','act_nco','pas_co','pas_nco','pn','dcp','dlp']
+      const update = {}
+      let encontrados = 0
+      CAMPOS.forEach(k => { if (data[k] !== null && data[k] !== undefined) { update[k] = data[k]; encontrados++ } })
+      setForm(f => ({ ...f, ...update }))
+      showToast(`✓ Se completaron ${encontrados} de ${CAMPOS.length} campos desde el PDF.`)
+    } catch (e) {
+      showToast('No se pudo procesar el PDF.')
+    } finally {
+      setPdfLoading(false)
+    }
+  }
+
   const analizar = () => {
     if (!form.razon || !form.ventas) { showToast('Completá al menos la Razón Social y las Ventas.'); return }
     // IDs de meses (todos los posibles) + resto de campos numéricos
@@ -1397,8 +1429,24 @@ export default function App() {
           {tab === 'form' && (
             <>
               <div className="page-header">
-                <div className="page-title">Nueva empresa</div>
-                <div className="page-sub">Completá los datos del balance para analizar elegibilidad crediticia</div>
+                <div>
+                  <div className="page-title">Nueva empresa</div>
+                  <div className="page-sub">Completá los datos del balance para analizar elegibilidad crediticia</div>
+                </div>
+                <label style={{
+                  display:'flex', alignItems:'center', gap:8, cursor: pdfLoading ? 'wait' : 'pointer',
+                  padding:'9px 16px', borderRadius:10, fontWeight:600, fontSize:13,
+                  background: pdfLoading ? '#E2E8F0' : '#617ECA', color:'#fff',
+                  border:'none', transition:'background .15s', whiteSpace:'nowrap',
+                  opacity: pdfLoading ? 0.7 : 1,
+                }}>
+                  {pdfLoading ? <><span className="spinner" style={{borderTopColor:'#fff'}} /> Leyendo PDF…</> : '📄 Subir balance PDF'}
+                  <input
+                    type="file" accept="application/pdf" style={{ display:'none' }}
+                    disabled={pdfLoading}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) subirBalance(f); e.target.value = '' }}
+                  />
+                </label>
               </div>
 
               <div className="card">
