@@ -49,6 +49,7 @@ function EbitdaCalcAnt({ form, setForm }) {
 
   useEffect(() => {
     if (expanded) setForm(f => ({ ...f, ebitda_ant: ebitdaCalc }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cv, cc, cg, ca, expanded])
 
   const toggleExpand = () => {
@@ -114,6 +115,37 @@ function EbitdaCalcAnt({ form, setForm }) {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── PREVIEW EBITDA TIEMPO REAL ─────────────────────────────────────────────
+function EbitdaPreview({ form }) {
+  const ventas = form.ventas || 0
+  const cmv    = form.cmv    || 0
+  const gastos = form.gastos_op || 0
+  const amort  = form.amort  || 0
+
+  if (!ventas && !cmv && !gastos && !amort) return null
+
+  const ebitda = ventas - cmv - gastos + amort
+  const margen = ventas > 0 ? (ebitda / ventas * 100).toFixed(1) : null
+  const isPos  = ebitda >= 0
+
+  return (
+    <div style={{ marginTop:16, padding:'12px 18px', background: isPos ? '#F0FDF4' : '#FEF2F2', borderRadius:10, border:`1px solid ${isPos ? '#BBF7D0' : '#FECACA'}`, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+      <div>
+        <div style={{ fontSize:12, fontWeight:600, color: isPos ? '#059669' : '#DC2626', textTransform:'uppercase', letterSpacing:'.06em' }}>
+          ⚡ EBITDA estimado (tiempo real)
+        </div>
+        <div style={{ fontSize:11, color:'#94A3B8', marginTop:2 }}>Ventas − CMV − Gastos Op. + Amort.</div>
+      </div>
+      <div style={{ textAlign:'right' }}>
+        <div style={{ fontSize:24, fontWeight:700, fontFamily:"'DM Serif Display',serif", color: isPos ? '#059669' : '#DC2626' }}>
+          ${ebitda.toLocaleString('es-AR')}K
+        </div>
+        {margen && <div style={{ fontSize:11, color:'#94A3B8', marginTop:1 }}>Margen {margen}%</div>}
+      </div>
     </div>
   )
 }
@@ -587,27 +619,7 @@ export default function App() {
                     <Campo label="Impuesto a las ganancias" id="imp" form={form} setForm={setForm} />
                   </div>
                   {/* Preview EBITDA en tiempo real */}
-                  {(form.ventas > 0 || form.cmv > 0 || form.gastos_op > 0 || form.amort > 0) && (() => {
-                    const ebitdaLive = (form.ventas||0) - (form.cmv||0) - (form.gastos_op||0) + (form.amort||0)
-                    const margenLive = form.ventas > 0 ? (ebitdaLive / form.ventas * 100).toFixed(1) : null
-                    const isPos = ebitdaLive >= 0
-                    return (
-                      <div style={{ marginTop:16, padding:'12px 18px', background: isPos ? '#F0FDF4' : '#FEF2F2', borderRadius:10, border:`1px solid ${isPos ? '#BBF7D0' : '#FECACA'}`, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                        <div>
-                          <div style={{ fontSize:12, fontWeight:600, color: isPos ? '#059669' : '#DC2626', textTransform:'uppercase', letterSpacing:'.06em' }}>
-                            ⚡ EBITDA estimado (tiempo real)
-                          </div>
-                          <div style={{ fontSize:11, color:'#94A3B8', marginTop:2 }}>Ventas − CMV − Gastos Op. + Amort.</div>
-                        </div>
-                        <div style={{ textAlign:'right' }}>
-                          <div style={{ fontSize:24, fontWeight:700, fontFamily:"'DM Serif Display',serif", color: isPos ? '#059669' : '#DC2626' }}>
-                            ${ebitdaLive.toLocaleString('es-AR')}K
-                          </div>
-                          {margenLive && <div style={{ fontSize:11, color:'#94A3B8', marginTop:1 }}>Margen {margenLive}%</div>}
-                        </div>
-                      </div>
-                    )
-                  })()}
+                  <EbitdaPreview form={form} />
                 </div>
               </div>
 
