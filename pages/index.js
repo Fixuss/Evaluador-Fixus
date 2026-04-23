@@ -104,6 +104,91 @@ function Campo({ label, id, form, setForm, type='number', span=1, placeholder=''
   )
 }
 
+// ── CALCULADORA GASTOS OPERATIVOS ──────────────────────────────────────────
+function GastosOpCalc({ form, setForm }) {
+  const [expanded, setExpanded] = useState(false)
+  const [adm, setAdm] = useState(0)
+  const [com, setCom] = useState(0)
+
+  const total = adm + com
+
+  useEffect(() => {
+    if (expanded) setForm(f => ({ ...f, gastos_op: total }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adm, com, expanded])
+
+  const toggle = () => {
+    if (!expanded) { setAdm(0); setCom(0) }
+    setExpanded(e => !e)
+  }
+
+  return (
+    <div className="field" style={{ gridColumn: expanded ? 'span 3' : 'span 1' }}>
+      <label>Gastos operativos ($K)</label>
+      <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+        <input
+          type="text"
+          inputMode="numeric"
+          value={expanded ? total.toLocaleString('es-AR') : (form.gastos_op === '' || form.gastos_op === undefined ? '' : Number(form.gastos_op).toLocaleString('es-AR'))}
+          disabled={expanded}
+          style={{ flex:1, opacity: expanded ? 0.65 : 1 }}
+          onChange={e => {
+            const n = parseInt(e.target.value.replace(/[^\d]/g, ''), 10)
+            setForm(f => ({ ...f, gastos_op: isNaN(n) ? '' : n }))
+          }}
+        />
+        <button
+          type="button"
+          onClick={toggle}
+          style={{
+            padding:'7px 12px', fontSize:12, fontWeight:600, cursor:'pointer',
+            background: expanded ? '#FEE2E2' : '#EEF1FA',
+            color: expanded ? '#DC2626' : '#617ECA',
+            border: `1px solid ${expanded ? '#FECACA' : '#C9D2EE'}`,
+            borderRadius:8, whiteSpace:'nowrap', transition:'all .15s'
+          }}
+        >
+          {expanded ? '✕ Cerrar' : '🧮 Calcular'}
+        </button>
+      </div>
+
+      {expanded && (
+        <div style={{ marginTop:12, padding:16, background:'#F8FAFC', borderRadius:10, border:'1px solid #E2E8F0' }}>
+          <div style={{ fontSize:11, fontWeight:600, color:'#617ECA', marginBottom:10, textTransform:'uppercase', letterSpacing:'.06em' }}>
+            Gastos de administración + Gastos de comercialización
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+            {[
+              ['Gastos de adm.', adm, setAdm],
+              ['Gastos de comerc.', com, setCom],
+            ].map(([lbl, val, setter]) => (
+              <div className="field" key={lbl} style={{ margin:0 }}>
+                <label style={{ fontSize:11 }}>{lbl}</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={val ? val.toLocaleString('es-AR') : ''}
+                  placeholder="0"
+                  onChange={e => {
+                    const n = parseInt(e.target.value.replace(/[^\d]/g, ''), 10)
+                    setter(isNaN(n) ? 0 : n)
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop:12, padding:'10px 14px', background:'#EEF1FA', borderRadius:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <span style={{ fontSize:13, color:'#334155', fontWeight:500 }}>Total gastos operativos:</span>
+            <span style={{ fontSize:20, fontWeight:700, fontFamily:"'DM Serif Display',serif", color:'#617ECA' }}>
+              ${total.toLocaleString('es-AR')}K
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── CALCULADORA EBITDA ANTERIOR ────────────────────────────────────────────
 function EbitdaCalcAnt({ form, setForm }) {
   const [expanded, setExpanded] = useState(false)
@@ -1450,7 +1535,7 @@ export default function App() {
                   <div className="form-grid-3">
                     <Campo label="Ventas netas" id="ventas" form={form} setForm={setForm} />
                     <Campo label="CMV / Costo de ventas" id="cmv" form={form} setForm={setForm} />
-                    <Campo label="Gastos operativos" id="gastos_op" form={form} setForm={setForm} />
+                    <GastosOpCalc form={form} setForm={setForm} />
                     <Campo label="Amortizaciones / Dep." id="amort" form={form} setForm={setForm} />
                   </div>
                   <EbitdaPreview form={form} />
