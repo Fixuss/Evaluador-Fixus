@@ -104,6 +104,124 @@ function Campo({ label, id, form, setForm, type='number', span=1, placeholder=''
   )
 }
 
+// ── CALCULADORA EBITDA ANTERIOR ────────────────────────────────────────────
+function EbitdaCalcAnt({ form, setForm }) {
+  const [expanded, setExpanded] = useState(false)
+  const [cv, setCv] = useState(0)
+  const [cc, setCc] = useState(0)
+  const [cg, setCg] = useState(0)
+  const [ca, setCa] = useState(0)
+
+  const ebitdaCalc = cv - cc - cg + ca
+
+  useEffect(() => {
+    if (expanded) setForm(f => ({ ...f, ebitda_ant: ebitdaCalc }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cv, cc, cg, ca, expanded])
+
+  const toggle = () => {
+    if (!expanded) { setCv(0); setCc(0); setCg(0); setCa(0) }
+    setExpanded(e => !e)
+  }
+
+  return (
+    <div className="field" style={{ gridColumn: expanded ? 'span 3' : 'span 1' }}>
+      <label>EBITDA ej. anterior ($K)</label>
+      <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+        <input
+          type="text"
+          inputMode="numeric"
+          value={expanded ? ebitdaCalc.toLocaleString('es-AR') : (form.ebitda_ant === '' || form.ebitda_ant === undefined ? '' : Number(form.ebitda_ant).toLocaleString('es-AR'))}
+          disabled={expanded}
+          style={{ flex:1, opacity: expanded ? 0.65 : 1 }}
+          onChange={e => {
+            const cleaned = e.target.value.replace(/[^\d-]/g, '')
+            const n = parseInt(cleaned, 10)
+            setForm(f => ({ ...f, ebitda_ant: isNaN(n) ? '' : n }))
+          }}
+        />
+        <button
+          type="button"
+          onClick={toggle}
+          style={{
+            padding:'7px 12px', fontSize:12, fontWeight:600, cursor:'pointer',
+            background: expanded ? '#FEE2E2' : '#EEF1FA',
+            color: expanded ? '#DC2626' : '#617ECA',
+            border: `1px solid ${expanded ? '#FECACA' : '#C9D2EE'}`,
+            borderRadius:8, whiteSpace:'nowrap', transition:'all .15s'
+          }}
+        >
+          {expanded ? '✕ Cerrar' : '🧮 Calcular'}
+        </button>
+      </div>
+
+      {expanded && (
+        <div style={{ marginTop:12, padding:16, background:'#F8FAFC', borderRadius:10, border:'1px solid #E2E8F0' }}>
+          <div style={{ fontSize:11, fontWeight:600, color:'#617ECA', marginBottom:10, textTransform:'uppercase', letterSpacing:'.06em' }}>
+            Ventas − CMV − Gastos operativos + Amortizaciones
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10 }}>
+            {[
+              ['Ventas ant.', cv, setCv],
+              ['CMV / Costo ventas', cc, setCc],
+              ['Gastos operativos', cg, setCg],
+              ['Amortizaciones', ca, setCa],
+            ].map(([lbl, val, setter]) => (
+              <div className="field" key={lbl} style={{ margin:0 }}>
+                <label style={{ fontSize:11 }}>{lbl}</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={val ? val.toLocaleString('es-AR') : ''}
+                  placeholder="0"
+                  onChange={e => {
+                    const n = parseInt(e.target.value.replace(/[^\d]/g, ''), 10)
+                    setter(isNaN(n) ? 0 : n)
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop:12, padding:'10px 14px', background: ebitdaCalc >= 0 ? '#F0FDF4' : '#FEF2F2', borderRadius:8, border:`1px solid ${ebitdaCalc >= 0 ? '#BBF7D0' : '#FECACA'}`, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <span style={{ fontSize:13, color:'#334155', fontWeight:500 }}>EBITDA anterior:</span>
+            <span style={{ fontSize:20, fontWeight:700, fontFamily:"'DM Serif Display',serif", color: ebitdaCalc >= 0 ? '#059669' : '#DC2626' }}>
+              ${ebitdaCalc.toLocaleString('es-AR')}K
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── PREVIEW EBITDA TIEMPO REAL ─────────────────────────────────────────────
+function EbitdaPreview({ form }) {
+  const ventas = Number(form.ventas) || 0
+  const cmv    = Number(form.cmv)    || 0
+  const gastos = Number(form.gastos_op) || 0
+  const amort  = Number(form.amort)  || 0
+  if (!ventas && !cmv && !gastos && !amort) return null
+  const ebitda = ventas - cmv - gastos + amort
+  const margen = ventas > 0 ? (ebitda / ventas * 100).toFixed(1) : null
+  const isPos  = ebitda >= 0
+  return (
+    <div style={{ marginTop:16, padding:'12px 18px', background: isPos ? '#F0FDF4' : '#FEF2F2', borderRadius:10, border:`1px solid ${isPos ? '#BBF7D0' : '#FECACA'}`, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+      <div>
+        <div style={{ fontSize:12, fontWeight:600, color: isPos ? '#059669' : '#DC2626', textTransform:'uppercase', letterSpacing:'.06em' }}>
+          ⚡ EBITDA estimado (tiempo real)
+        </div>
+        <div style={{ fontSize:11, color:'#94A3B8', marginTop:2 }}>Ventas − CMV − Gastos Op. + Amort.</div>
+      </div>
+      <div style={{ textAlign:'right' }}>
+        <div style={{ fontSize:24, fontWeight:700, fontFamily:"'DM Serif Display',serif", color: isPos ? '#059669' : '#DC2626' }}>
+          ${ebitda.toLocaleString('es-AR')}K
+        </div>
+        {margen && <div style={{ fontSize:11, color:'#94A3B8', marginTop:1 }}>Margen {margen}%</div>}
+      </div>
+    </div>
+  )
+}
+
 // ── MEMO ANALÍTICO ─────────────────────────────────────────────────────────
 // Construye un memo crediticio argumentado a partir de los ratios y el análisis.
 // Devuelve un array de secciones { titulo, texto } para renderizar o exportar.
@@ -1332,7 +1450,7 @@ export default function App() {
                 <div className="card-body">
                   <div className="form-grid-3">
                     <Campo label="Ventas netas ej. anterior" id="ventas_ant" form={form} setForm={setForm} />
-                    <Campo label="EBITDA ej. anterior" id="ebitda_ant" form={form} setForm={setForm} />
+                    <EbitdaCalcAnt form={form} setForm={setForm} />
                     <Campo label="Deuda financiera ej. anterior" id="deuda_ant" form={form} setForm={setForm} />
                   </div>
                 </div>
@@ -1349,6 +1467,7 @@ export default function App() {
                     <Campo label="Resultado financiero" id="res_fin" form={form} setForm={setForm} />
                     <Campo label="Impuesto a las ganancias" id="imp" form={form} setForm={setForm} />
                   </div>
+                  <EbitdaPreview form={form} />
                 </div>
               </div>
 
