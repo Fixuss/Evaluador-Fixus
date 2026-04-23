@@ -515,11 +515,18 @@ function PanelResultado({ resultado, onAgregar, onPDF, loading, pdfLoading }) {
               borderRadius:8, fontSize:12
             }}>
               <span style={{ color:'#475569' }}>La empresa solicitó <strong>{fmtK(prestamo.comparacion.pidio)}</strong> — </span>
-              {prestamo.comparacion.excede ? (
-                <span style={{ color:'#991B1B', fontWeight:500 }}>
-                  supera la opción mayor sugerida ({fmtK(prestamo.comparacion.sugerido_max)}) en {((prestamo.comparacion.ratio - 1) * 100).toFixed(0)}%. Revisar plazo o monto.
-                </span>
-              ) : (
+              {prestamo.comparacion.excede ? (() => {
+                const sgrs = Math.ceil(prestamo.comparacion.pidio / prestamo.comparacion.sugerido_max)
+                return (
+                  <span style={{ color:'#991B1B', fontWeight:500 }}>
+                    supera la opción mayor sugerida ({fmtK(prestamo.comparacion.sugerido_max)}) en {((prestamo.comparacion.ratio - 1) * 100).toFixed(0)}%.{' '}
+                    {sgrs <= 6
+                      ? <>Para llegar a ese monto, la empresa debería calificar con <strong>{sgrs} SGRs</strong> bajo el mismo criterio.</>
+                      : <>Excede la capacidad de financiamiento — requeriría más de 6 SGRs.</>
+                    }
+                  </span>
+                )
+              })() : (
                 <span style={{ color:'#065F46', fontWeight:500 }}>
                   cubre el {(prestamo.comparacion.ratio * 100).toFixed(0)}% de la opción mayor sugerida ({fmtK(prestamo.comparacion.sugerido_max)}). Dentro de lo recomendable.
                 </span>
