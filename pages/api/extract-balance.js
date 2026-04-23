@@ -1,10 +1,8 @@
-import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
 export const config = {
   api: { bodyParser: { sizeLimit: '20mb' } },
 }
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const PROMPT = `Sos un experto contable argentino. Analizá este balance general y estado de resultados y extraé los siguientes valores expresados en MILES DE PESOS ($K).
 
@@ -21,12 +19,12 @@ Campos a extraer:
 - pas_co: pasivo corriente total
 - pas_nco: pasivo no corriente total
 - pn: patrimonio neto total
-- dcp: deudas bancarias o financieras de corto plazo (préstamos, descubiertos, obligaciones financieras CP)
-- dlp: deudas bancarias o financieras de largo plazo (préstamos LP, deuda financiera no corriente)
+- dcp: deudas bancarias o financieras de corto plazo
+- dlp: deudas bancarias o financieras de largo plazo
 
-Respondé ÚNICAMENTE con un objeto JSON válido. Sin texto adicional, sin bloques de código markdown. Usá null para los campos que no puedas determinar con certeza.
+Respondé ÚNICAMENTE con un objeto JSON válido. Sin texto adicional, sin bloques markdown. Usá null para los campos que no puedas determinar con certeza.
 
-Formato esperado (solo el JSON):
+Formato exacto esperado:
 {"ventas_ant":null,"ventas":null,"ebitda_ej":null,"act_co":null,"act_nco":null,"pas_co":null,"pas_nco":null,"pn":null,"dcp":null,"dlp":null}`
 
 export default async function handler(req, res) {
@@ -36,24 +34,15 @@ export default async function handler(req, res) {
   if (!pdfBase64) return res.status(400).json({ error: 'No se recibió el PDF.' })
 
   try {
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 1024,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'document',
-              source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 },
-            },
-            { type: 'text', text: PROMPT },
-          ],
-        },
-      ],
-    })
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
-    const raw = message.content[0]?.text?.trim() ?? ''
+    const result = await model.generateContent([
+      { inlineData: { mimeType: 'application/pdf', data: pdfBase64 } },
+      PROMPT,
+    ])
+
+    const raw = result.response.text().trim()
     const match = raw.match(/\{[\s\S]*\}/)
     if (!match) return res.status(500).json({ error: 'No se pudo interpretar la respuesta de la IA.' })
 
