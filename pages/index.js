@@ -18,7 +18,7 @@ const FORM_EMPTY = {
   antiguedad:'', fin_sol:'',
   cierre_ejercicio:'', incluir_mes_actual:false,
   ventas_ant:'', ebitda_ant:'', deuda_ant:'',
-  ventas:'', cmv:'', gastos_op:'', amort:'',
+  ventas:'', ebitda_ej:'',
   act_co:'', act_nco:'', caja:'', pas_co:'', pas_nco:'', pn:'',
   dcp:'', dlp:'',
   deuda_post:'',
@@ -104,37 +104,44 @@ function Campo({ label, id, form, setForm, type='number', span=1, placeholder=''
   )
 }
 
-// ── CALCULADORA GASTOS OPERATIVOS ──────────────────────────────────────────
-function GastosOpCalc({ form, setForm }) {
+// ── CALCULADORA EBITDA EJERCICIO ACTUAL ────────────────────────────────────
+function EbitdaEjercicioCalc({ form, setForm }) {
   const [expanded, setExpanded] = useState(false)
+  const [rb, setRb] = useState(0)
   const [adm, setAdm] = useState(0)
   const [com, setCom] = useState(0)
+  const [amort, setAmort] = useState(0)
 
-  const total = adm + com
+  const ebitdaCalc = rb - adm - com + amort
 
   useEffect(() => {
-    if (expanded) setForm(f => ({ ...f, gastos_op: total }))
+    if (expanded) setForm(f => ({ ...f, ebitda_ej: ebitdaCalc }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adm, com, expanded])
+  }, [rb, adm, com, amort, expanded])
 
   const toggle = () => {
-    if (!expanded) { setAdm(0); setCom(0) }
+    if (!expanded) { setRb(0); setAdm(0); setCom(0); setAmort(0) }
     setExpanded(e => !e)
   }
 
+  const val = form.ebitda_ej
+  const isPos = ebitdaCalc >= 0
+
   return (
-    <div className="field" style={{ gridColumn: expanded ? 'span 3' : 'span 1' }}>
-      <label>Gastos operativos ($K)</label>
+    <div className="field" style={{ gridColumn: expanded ? 'span 2' : 'span 1' }}>
+      <label>EBITDA ($K)</label>
       <div style={{ display:'flex', gap:8, alignItems:'center' }}>
         <input
           type="text"
           inputMode="numeric"
-          value={expanded ? total.toLocaleString('es-AR') : (form.gastos_op === '' || form.gastos_op === undefined ? '' : Number(form.gastos_op).toLocaleString('es-AR'))}
+          value={expanded ? ebitdaCalc.toLocaleString('es-AR') : (val === '' || val === undefined ? '' : Number(val).toLocaleString('es-AR'))}
           disabled={expanded}
           style={{ flex:1, opacity: expanded ? 0.65 : 1 }}
           onChange={e => {
-            const n = parseInt(e.target.value.replace(/[^\d]/g, ''), 10)
-            setForm(f => ({ ...f, gastos_op: isNaN(n) ? '' : n }))
+            const cleaned = e.target.value.replace(/[^\d-]/g, '')
+            const isNeg = cleaned.startsWith('-')
+            const n = parseInt(cleaned.replace(/-/g,''), 10)
+            setForm(f => ({ ...f, ebitda_ej: isNaN(n) ? '' : (isNeg ? -n : n) }))
           }}
         />
         <button
@@ -155,19 +162,21 @@ function GastosOpCalc({ form, setForm }) {
       {expanded && (
         <div style={{ marginTop:12, padding:16, background:'#F8FAFC', borderRadius:10, border:'1px solid #E2E8F0' }}>
           <div style={{ fontSize:11, fontWeight:600, color:'#617ECA', marginBottom:10, textTransform:'uppercase', letterSpacing:'.06em' }}>
-            Gastos de administración + Gastos de comercialización
+            Resultado bruto − Gs. Adm. − Gs. Comerc. + Amortizaciones
           </div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10 }}>
             {[
+              ['Resultado bruto', rb, setRb],
               ['Gastos de adm.', adm, setAdm],
               ['Gastos de comerc.', com, setCom],
-            ].map(([lbl, val, setter]) => (
+              ['Amortizaciones', amort, setAmort],
+            ].map(([lbl, v, setter]) => (
               <div className="field" key={lbl} style={{ margin:0 }}>
                 <label style={{ fontSize:11 }}>{lbl}</label>
                 <input
                   type="text"
                   inputMode="numeric"
-                  value={val ? val.toLocaleString('es-AR') : ''}
+                  value={v ? v.toLocaleString('es-AR') : ''}
                   placeholder="0"
                   onChange={e => {
                     const n = parseInt(e.target.value.replace(/[^\d]/g, ''), 10)
@@ -177,10 +186,10 @@ function GastosOpCalc({ form, setForm }) {
               </div>
             ))}
           </div>
-          <div style={{ marginTop:12, padding:'10px 14px', background:'#EEF1FA', borderRadius:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <span style={{ fontSize:13, color:'#334155', fontWeight:500 }}>Total gastos operativos:</span>
-            <span style={{ fontSize:20, fontWeight:700, fontFamily:"'DM Serif Display',serif", color:'#617ECA' }}>
-              ${total.toLocaleString('es-AR')}K
+          <div style={{ marginTop:12, padding:'10px 14px', background: isPos ? '#F0FDF4' : '#FEF2F2', borderRadius:8, border:`1px solid ${isPos ? '#BBF7D0' : '#FECACA'}`, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <span style={{ fontSize:13, color:'#334155', fontWeight:500 }}>EBITDA calculado:</span>
+            <span style={{ fontSize:20, fontWeight:700, fontFamily:"'DM Serif Display',serif", color: isPos ? '#059669' : '#DC2626' }}>
+              ${ebitdaCalc.toLocaleString('es-AR')}K
             </span>
           </div>
         </div>
@@ -279,33 +288,6 @@ function EbitdaCalcAnt({ form, setForm }) {
   )
 }
 
-// ── PREVIEW EBITDA TIEMPO REAL ─────────────────────────────────────────────
-function EbitdaPreview({ form }) {
-  const ventas = Number(form.ventas) || 0
-  const cmv    = Number(form.cmv)    || 0
-  const gastos = Number(form.gastos_op) || 0
-  const amort  = Number(form.amort)  || 0
-  if (!ventas && !cmv && !gastos && !amort) return null
-  const ebitda = ventas - cmv - gastos + amort
-  const margen = ventas > 0 ? (ebitda / ventas * 100).toFixed(1) : null
-  const isPos  = ebitda >= 0
-  return (
-    <div style={{ marginTop:16, padding:'12px 18px', background: isPos ? '#F0FDF4' : '#FEF2F2', borderRadius:10, border:`1px solid ${isPos ? '#BBF7D0' : '#FECACA'}`, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-      <div>
-        <div style={{ fontSize:12, fontWeight:600, color: isPos ? '#059669' : '#DC2626', textTransform:'uppercase', letterSpacing:'.06em' }}>
-          ⚡ EBITDA estimado (tiempo real)
-        </div>
-        <div style={{ fontSize:11, color:'#94A3B8', marginTop:2 }}>Ventas − CMV − Gastos Op. + Amort.</div>
-      </div>
-      <div style={{ textAlign:'right' }}>
-        <div style={{ fontSize:24, fontWeight:700, fontFamily:"'DM Serif Display',serif", color: isPos ? '#059669' : '#DC2626' }}>
-          ${ebitda.toLocaleString('es-AR')}K
-        </div>
-        {margen && <div style={{ fontSize:11, color:'#94A3B8', marginTop:1 }}>Margen {margen}%</div>}
-      </div>
-    </div>
-  )
-}
 
 // ── MEMO ANALÍTICO ─────────────────────────────────────────────────────────
 // Construye un memo crediticio argumentado a partir de los ratios y el análisis.
@@ -339,7 +321,6 @@ function buildMemoAnalista(r, elig, form, prestamo) {
     :                          'deficiente, comprometiendo la sustentabilidad del negocio'
   let rent = `Sobre ventas netas de ${fmtK(form.ventas)}, la empresa genera un EBITDA de ${fmtK(r.ebitda)} `
   rent += `equivalente a un margen del ${r.margen_ebitda.toFixed(1)}%, ${califMargen}. `
-  rent += `El margen bruto se sitúa en el ${r.margen_bruto.toFixed(1)}%. `
   secciones.push({ titulo: 'Rentabilidad y generación operativa', texto: rent })
 
   // 3) SOLVENCIA Y LIQUIDEZ
@@ -627,9 +608,7 @@ function PanelResultado({ resultado, onAgregar, onPDF, loading, pdfLoading }) {
           <div className="card-body">
             {[
               ['Ventas netas', fmtK(form.ventas)],
-              ['Ganancia bruta', fmtK(r.gan_bruta) + ' (' + r.margen_bruto.toFixed(1) + '%)'],
               ['EBITDA', fmtK(r.ebitda) + ' (' + r.margen_ebitda.toFixed(1) + '%)'],
-              ['EBIT', fmtK(r.ebit)],
             ].map(([k,v]) => (
               <div key={k} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid #F1F5F9',fontSize:13}}>
                 <span style={{color:'#64748B'}}>{k}</span><span style={{fontWeight:500}}>{v}</span>
@@ -1230,7 +1209,7 @@ export default function App() {
     if (!form.razon || !form.ventas) { showToast('Completá al menos la Razón Social y las Ventas.'); return }
     // IDs de meses (todos los posibles) + resto de campos numéricos
     const monthIds = Array.from({ length: 24 }, (_, i) => `m${i+1}`)
-    const numKeys = ['antiguedad','fin_sol','ventas_ant','ebitda_ant','deuda_ant','ventas','cmv','gastos_op','amort','act_co','act_nco','caja','pas_co','pas_nco','pn','dcp','dlp','deuda_post', ...monthIds]
+    const numKeys = ['antiguedad','fin_sol','ventas_ant','ebitda_ant','deuda_ant','ventas','ebitda_ej','act_co','act_nco','caja','pas_co','pas_nco','pn','dcp','dlp','deuda_post', ...monthIds]
     const formNum = { ...form }
     numKeys.forEach(k => { formNum[k] = toNum(form[k]) })
     // Si hay fecha de cierre, tomamos solo los meses que correspondan; si no, los 12 clásicos.
@@ -1450,7 +1429,7 @@ export default function App() {
     antiguedad:12, fin_sol:10000,
     cierre_ejercicio:'2025-03', incluir_mes_actual:false, // Abr 2025 → Mar 2026 = 12 meses completos
     ventas_ant:78000, ebitda_ant:10200, deuda_ant:18000,
-    ventas:85000, cmv:52000, gastos_op:12000, amort:3500,
+    ventas:85000, ebitda_ej:17500,
     act_co:32000, act_nco:28000, caja:5500, pas_co:18000, pas_nco:15000, pn:27000,
     dcp:8000, dlp:12000,
     deuda_post:22500, // crece ~12% vs balance, escenario realista
@@ -1534,11 +1513,8 @@ export default function App() {
                 <div className="card-body">
                   <div className="form-grid-3">
                     <Campo label="Ventas netas" id="ventas" form={form} setForm={setForm} />
-                    <Campo label="CMV / Costo de ventas" id="cmv" form={form} setForm={setForm} />
-                    <GastosOpCalc form={form} setForm={setForm} />
-                    <Campo label="Amortizaciones / Dep." id="amort" form={form} setForm={setForm} />
+                    <EbitdaEjercicioCalc form={form} setForm={setForm} />
                   </div>
-                  <EbitdaPreview form={form} />
                 </div>
               </div>
 
