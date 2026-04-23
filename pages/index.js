@@ -17,9 +17,9 @@ const FORM_EMPTY = {
   razon:'', cuit:'', sector:'', destino:'',
   antiguedad:'', fin_sol:'',
   cierre_ejercicio:'', incluir_mes_actual:false,
-  ventas_ant:'', ebitda_ant:'', deuda_ant:'',
+  ventas_ant:'',
   ventas:'', ebitda_ej:'',
-  act_co:'', act_nco:'', caja:'', pas_co:'', pas_nco:'', pn:'',
+  act_co:'', act_nco:'', pas_co:'', pas_nco:'', pn:'',
   dcp:'', dlp:'',
   deuda_post:'',
   m1:'', m2:'', m3:'', m4:'', m5:'', m6:'',
@@ -198,95 +198,6 @@ function EbitdaEjercicioCalc({ form, setForm }) {
   )
 }
 
-// ── CALCULADORA EBITDA ANTERIOR ────────────────────────────────────────────
-function EbitdaCalcAnt({ form, setForm }) {
-  const [expanded, setExpanded] = useState(false)
-  const [cv, setCv] = useState(0)
-  const [cc, setCc] = useState(0)
-  const [cg, setCg] = useState(0)
-  const [ca, setCa] = useState(0)
-
-  const ebitdaCalc = cv - cc - cg + ca
-
-  useEffect(() => {
-    if (expanded) setForm(f => ({ ...f, ebitda_ant: ebitdaCalc }))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cv, cc, cg, ca, expanded])
-
-  const toggle = () => {
-    if (!expanded) { setCv(0); setCc(0); setCg(0); setCa(0) }
-    setExpanded(e => !e)
-  }
-
-  return (
-    <div className="field" style={{ gridColumn: expanded ? 'span 3' : 'span 1' }}>
-      <label>EBITDA ej. anterior ($K)</label>
-      <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-        <input
-          type="text"
-          inputMode="numeric"
-          value={expanded ? ebitdaCalc.toLocaleString('es-AR') : (form.ebitda_ant === '' || form.ebitda_ant === undefined ? '' : Number(form.ebitda_ant).toLocaleString('es-AR'))}
-          disabled={expanded}
-          style={{ flex:1, opacity: expanded ? 0.65 : 1 }}
-          onChange={e => {
-            const cleaned = e.target.value.replace(/[^\d-]/g, '')
-            const n = parseInt(cleaned, 10)
-            setForm(f => ({ ...f, ebitda_ant: isNaN(n) ? '' : n }))
-          }}
-        />
-        <button
-          type="button"
-          onClick={toggle}
-          style={{
-            padding:'7px 12px', fontSize:12, fontWeight:600, cursor:'pointer',
-            background: expanded ? '#FEE2E2' : '#EEF1FA',
-            color: expanded ? '#DC2626' : '#617ECA',
-            border: `1px solid ${expanded ? '#FECACA' : '#C9D2EE'}`,
-            borderRadius:8, whiteSpace:'nowrap', transition:'all .15s'
-          }}
-        >
-          {expanded ? '✕ Cerrar' : '🧮 Calcular'}
-        </button>
-      </div>
-
-      {expanded && (
-        <div style={{ marginTop:12, padding:16, background:'#F8FAFC', borderRadius:10, border:'1px solid #E2E8F0' }}>
-          <div style={{ fontSize:11, fontWeight:600, color:'#617ECA', marginBottom:10, textTransform:'uppercase', letterSpacing:'.06em' }}>
-            Resultado bruto − Gs. Adm. − Gs. Comerc. + Amortizaciones
-          </div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10 }}>
-            {[
-              ['Resultado bruto', cv, setCv],
-              ['Gastos de adm.', cc, setCc],
-              ['Gastos de comerc.', cg, setCg],
-              ['Amortizaciones', ca, setCa],
-            ].map(([lbl, val, setter]) => (
-              <div className="field" key={lbl} style={{ margin:0 }}>
-                <label style={{ fontSize:11 }}>{lbl}</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={val ? val.toLocaleString('es-AR') : ''}
-                  placeholder="0"
-                  onChange={e => {
-                    const n = parseInt(e.target.value.replace(/[^\d]/g, ''), 10)
-                    setter(isNaN(n) ? 0 : n)
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop:12, padding:'10px 14px', background: ebitdaCalc >= 0 ? '#F0FDF4' : '#FEF2F2', borderRadius:8, border:`1px solid ${ebitdaCalc >= 0 ? '#BBF7D0' : '#FECACA'}`, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <span style={{ fontSize:13, color:'#334155', fontWeight:500 }}>EBITDA anterior:</span>
-            <span style={{ fontSize:20, fontWeight:700, fontFamily:"'DM Serif Display',serif", color: ebitdaCalc >= 0 ? '#059669' : '#DC2626' }}>
-              ${ebitdaCalc.toLocaleString('es-AR')}K
-            </span>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
 
 
 // ── MEMO ANALÍTICO ─────────────────────────────────────────────────────────
@@ -1216,7 +1127,7 @@ export default function App() {
     if (!form.razon || !form.ventas) { showToast('Completá al menos la Razón Social y las Ventas.'); return }
     // IDs de meses (todos los posibles) + resto de campos numéricos
     const monthIds = Array.from({ length: 24 }, (_, i) => `m${i+1}`)
-    const numKeys = ['antiguedad','fin_sol','ventas_ant','ebitda_ant','deuda_ant','ventas','ebitda_ej','act_co','act_nco','caja','pas_co','pas_nco','pn','dcp','dlp','deuda_post', ...monthIds]
+    const numKeys = ['antiguedad','fin_sol','ventas_ant','ventas','ebitda_ej','act_co','act_nco','pas_co','pas_nco','pn','dcp','dlp','deuda_post', ...monthIds]
     const formNum = { ...form }
     numKeys.forEach(k => { formNum[k] = toNum(form[k]) })
     // Si hay fecha de cierre, tomamos solo los meses que correspondan; si no, los 12 clásicos.
@@ -1435,9 +1346,9 @@ export default function App() {
     razon:'Metalúrgica del Sur S.A.', cuit:'30-71234567-9', sector:'Manufactura metalmecánica', destino:'Capital de trabajo y maquinaria',
     antiguedad:12, fin_sol:10000,
     cierre_ejercicio:'2025-03', incluir_mes_actual:false, // Abr 2025 → Mar 2026 = 12 meses completos
-    ventas_ant:78000, ebitda_ant:10200, deuda_ant:18000,
+    ventas_ant:78000,
     ventas:85000, ebitda_ej:17500,
-    act_co:32000, act_nco:28000, caja:5500, pas_co:18000, pas_nco:15000, pn:27000,
+    act_co:32000, act_nco:28000, pas_co:18000, pas_nco:15000, pn:27000,
     dcp:8000, dlp:12000,
     deuda_post:22500, // crece ~12% vs balance, escenario realista
     m1:7200, m2:7500, m3:7900, m4:8100, m5:8400, m6:8800,
@@ -1509,8 +1420,6 @@ export default function App() {
                 <div className="card-body">
                   <div className="form-grid-3">
                     <Campo label="Ventas netas ej. anterior" id="ventas_ant" form={form} setForm={setForm} />
-                    <EbitdaCalcAnt form={form} setForm={setForm} />
-                    <Campo label="Deuda financiera ej. anterior" id="deuda_ant" form={form} setForm={setForm} />
                   </div>
                 </div>
               </div>
@@ -1531,7 +1440,6 @@ export default function App() {
                   <div className="form-grid-3">
                     <Campo label="Activo corriente" id="act_co" form={form} setForm={setForm} />
                     <Campo label="Activo no corriente" id="act_nco" form={form} setForm={setForm} />
-                    <Campo label="Disponibilidades / Caja" id="caja" form={form} setForm={setForm} />
                     <Campo label="Pasivo corriente" id="pas_co" form={form} setForm={setForm} />
                     <Campo label="Pasivo no corriente" id="pas_nco" form={form} setForm={setForm} />
                     <Campo label="Patrimonio neto" id="pn" form={form} setForm={setForm} />
