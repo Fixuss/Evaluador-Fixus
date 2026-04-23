@@ -18,7 +18,7 @@ const FORM_EMPTY = {
   antiguedad:'', fin_sol:'',
   cierre_ejercicio:'', incluir_mes_actual:false,
   ventas_ant:'', ebitda_ant:'', deuda_ant:'',
-  ventas:'', cmv:'', gastos_op:'', amort:'', res_fin:'', imp:'',
+  ventas:'', cmv:'', gastos_op:'', amort:'',
   act_co:'', act_nco:'', caja:'', pas_co:'', pas_nco:'', pn:'',
   dcp:'', dlp:'',
   deuda_post:'',
@@ -252,19 +252,9 @@ function buildMemoAnalista(r, elig, form, prestamo) {
     : r.margen_ebitda >= 8  ? 'en línea con los estándares esperables para el segmento'
     : r.margen_ebitda >= 5  ? 'ajustado, cubriendo mínimamente la estructura operativa'
     :                          'deficiente, comprometiendo la sustentabilidad del negocio'
-  const resNetoFrase = r.res_neto > 0
-    ? `arrojando un resultado neto positivo de ${fmtK(r.res_neto)} (${r.margen_neto.toFixed(1)}%), consistente con una operación rentable`
-    : `con un resultado neto negativo de ${fmtK(r.res_neto)} (${r.margen_neto.toFixed(1)}%), señal de alerta que debe contextualizarse (inversiones, cargos no recurrentes, situación excepcional)`
   let rent = `Sobre ventas netas de ${fmtK(form.ventas)}, la empresa genera un EBITDA de ${fmtK(r.ebitda)} `
   rent += `equivalente a un margen del ${r.margen_ebitda.toFixed(1)}%, ${califMargen}. `
-  rent += `El margen bruto se sitúa en el ${r.margen_bruto.toFixed(1)}%, `
-  rent += `y el ejercicio cierra ${resNetoFrase}. `
-  if (r.ebitda > 0 && r.intereses > 0) {
-    rent += `La cobertura de intereses alcanza ${r.cobertura.toFixed(1)}x, `
-    rent += r.cobertura >= 3 ? 'con holgura suficiente para atender el costo financiero.' :
-            r.cobertura >= 1.5 ? 'cobertura ajustada pero viable.' :
-            'cobertura crítica que debe ser considerada.'
-  }
+  rent += `El margen bruto se sitúa en el ${r.margen_bruto.toFixed(1)}%. `
   secciones.push({ titulo: 'Rentabilidad y generación operativa', texto: rent })
 
   // 3) SOLVENCIA Y LIQUIDEZ
@@ -281,8 +271,7 @@ function buildMemoAnalista(r, elig, form, prestamo) {
     :                          'apalancamiento elevado que exige cautela adicional'
   let solv = `La empresa evidencia una ${liqFrase} (liquidez corriente de ${r.liquidez.toFixed(2)}x) y un ${ctFrase}. `
   solv += `El patrimonio neto asciende a ${fmtK(form.pn)} frente a un pasivo total de ${fmtK(r.pasivo_total)}, `
-  solv += `resultando en una relación Pasivo/PN de ${r.endeudamiento.toFixed(2)}x — ${endCalif}. `
-  solv += `El ROE se ubica en ${r.roe.toFixed(1)}% y el ROA en ${r.roa.toFixed(1)}%.`
+  solv += `resultando en una relación Pasivo/PN de ${r.endeudamiento.toFixed(2)}x — ${endCalif}.`
   secciones.push({ titulo: 'Solvencia y estructura patrimonial', texto: solv })
 
   // 4) ESTRUCTURA Y EVOLUCIÓN DE LA DEUDA
@@ -556,7 +545,6 @@ function PanelResultado({ resultado, onAgregar, onPDF, loading, pdfLoading }) {
               ['Ganancia bruta', fmtK(r.gan_bruta) + ' (' + r.margen_bruto.toFixed(1) + '%)'],
               ['EBITDA', fmtK(r.ebitda) + ' (' + r.margen_ebitda.toFixed(1) + '%)'],
               ['EBIT', fmtK(r.ebit)],
-              ['Resultado neto', fmtK(r.res_neto) + ' (' + r.margen_neto.toFixed(1) + '%)'],
             ].map(([k,v]) => (
               <div key={k} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid #F1F5F9',fontSize:13}}>
                 <span style={{color:'#64748B'}}>{k}</span><span style={{fontWeight:500}}>{v}</span>
@@ -1157,7 +1145,7 @@ export default function App() {
     if (!form.razon || !form.ventas) { showToast('Completá al menos la Razón Social y las Ventas.'); return }
     // IDs de meses (todos los posibles) + resto de campos numéricos
     const monthIds = Array.from({ length: 24 }, (_, i) => `m${i+1}`)
-    const numKeys = ['antiguedad','fin_sol','ventas_ant','ebitda_ant','deuda_ant','ventas','cmv','gastos_op','amort','res_fin','imp','act_co','act_nco','caja','pas_co','pas_nco','pn','dcp','dlp','deuda_post', ...monthIds]
+    const numKeys = ['antiguedad','fin_sol','ventas_ant','ebitda_ant','deuda_ant','ventas','cmv','gastos_op','amort','act_co','act_nco','caja','pas_co','pas_nco','pn','dcp','dlp','deuda_post', ...monthIds]
     const formNum = { ...form }
     numKeys.forEach(k => { formNum[k] = toNum(form[k]) })
     // Si hay fecha de cierre, tomamos solo los meses que correspondan; si no, los 12 clásicos.
@@ -1377,7 +1365,7 @@ export default function App() {
     antiguedad:12, fin_sol:10000,
     cierre_ejercicio:'2025-03', incluir_mes_actual:false, // Abr 2025 → Mar 2026 = 12 meses completos
     ventas_ant:78000, ebitda_ant:10200, deuda_ant:18000,
-    ventas:85000, cmv:52000, gastos_op:12000, amort:3500, res_fin:-4200, imp:4500,
+    ventas:85000, cmv:52000, gastos_op:12000, amort:3500,
     act_co:32000, act_nco:28000, caja:5500, pas_co:18000, pas_nco:15000, pn:27000,
     dcp:8000, dlp:12000,
     deuda_post:22500, // crece ~12% vs balance, escenario realista
@@ -1464,8 +1452,6 @@ export default function App() {
                     <Campo label="CMV / Costo de ventas" id="cmv" form={form} setForm={setForm} />
                     <Campo label="Gastos operativos" id="gastos_op" form={form} setForm={setForm} />
                     <Campo label="Amortizaciones / Dep." id="amort" form={form} setForm={setForm} />
-                    <Campo label="Resultado financiero" id="res_fin" form={form} setForm={setForm} />
-                    <Campo label="Impuesto a las ganancias" id="imp" form={form} setForm={setForm} />
                   </div>
                   <EbitdaPreview form={form} />
                 </div>
