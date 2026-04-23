@@ -1143,7 +1143,7 @@ Respondé SOLO con JSON válido, sin markdown. Usá null si no encontrás el val
 Formato: {"ventas_ant":null,"ventas":null,"ebitda_ej":null,"act_co":null,"act_nco":null,"pas_co":null,"pas_nco":null,"pn":null,"dcp":null,"dlp":null}`
 
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1156,10 +1156,11 @@ Formato: {"ventas_ant":null,"ventas":null,"ebitda_ej":null,"act_co":null,"act_nc
         }
       )
       const json = await res.json()
-      if (!res.ok) throw new Error(json.error?.message || 'Error Gemini API')
+      if (!res.ok) throw new Error(`Gemini ${res.status}: ${json.error?.message || JSON.stringify(json.error)}`)
       const raw = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? ''
+      if (!raw) throw new Error('Gemini no devolvió texto. Respuesta: ' + JSON.stringify(json).slice(0,200))
       const match = raw.match(/\{[\s\S]*\}/)
-      if (!match) throw new Error('No se pudo leer la respuesta de la IA.')
+      if (!match) throw new Error('Respuesta inesperada: ' + raw.slice(0,200))
       const data = JSON.parse(match[0])
       const CAMPOS = ['ventas_ant','ventas','ebitda_ej','act_co','act_nco','pas_co','pas_nco','pn','dcp','dlp']
       const update = {}
