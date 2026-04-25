@@ -1030,6 +1030,10 @@ export default function App() {
   const [criterios, setCriterios] = useState(CRITERIOS_DEFAULT)
   const [toast, setToast] = useState(null)
   const [loading, setLoading] = useState(false)
+  // AFIP lookup
+  const [buscandoCuit, setBuscandoCuit] = useState(false)
+  const [cuitError, setCuitError]       = useState('')
+  const [afipData, setAfipData]         = useState(null)  // { estadoClave, tipoPersona, mesCierre, fechaInscripcion, domicilio, actividad }
   const [pdfLoading, setPdfLoading] = useState(false)
   const [savingCrit, setSavingCrit] = useState(false)
   // Perfil cualitativo
@@ -1039,6 +1043,32 @@ export default function App() {
   const [resenaVisible, setResenaVisible] = useState(false)
 
   const showToast = msg => setToast(msg)
+
+  const buscarCuit = async () => {
+    const cuitLimpio = (form.cuit || '').replace(/[-\s]/g, '')
+    if (cuitLimpio.length !== 11) { setCuitError('Ingresá un CUIT de 11 dígitos'); return }
+    setCuitError('')
+    setBuscandoCuit(true)
+    try {
+      const res  = await fetch(`/api/buscar-cuit?cuit=${cuitLimpio}`)
+      const data = await res.json()
+      if (res.ok) {
+        if (data.razonSocial) setForm(f => ({ ...f, razon: data.razonSocial }))
+        if (data.actividad)   setForm(f => ({ ...f, sector: data.actividad }))
+        setAfipData({
+          estadoClave:    data.estadoClave,
+          tipoPersona:    data.tipoPersona,
+          mesCierre:      data.mesCierre,
+          fechaInscripcion: data.fechaInscripcion,
+          domicilio:      data.domicilio,
+          actividad:      data.actividad,
+        })
+      } else {
+        setCuitError(data.error || 'No se encontró el CUIT')
+      }
+    } catch { setCuitError('Error de conexión') }
+    finally { setBuscandoCuit(false) }
+  }
 
   // Cargar pipeline, criterios y perfiles al inicio
   useEffect(() => {
@@ -1405,13 +1435,75 @@ export default function App() {
                 <div className="card-header"><div className="section-dot" /><span className="card-title">Identificación</span></div>
                 <div className="card-body">
                   <div className="form-grid">
-                    <Campo label="Razón Social" id="razon" form={form} setForm={setForm} type="text" placeholder="Ej: Metalúrgica del Sur S.A." />
-                    <Campo label="CUIT" id="cuit" form={form} setForm={setForm} type="text" placeholder="30-12345678-9" />
-                    <Campo label="Sector / Actividad" id="sector" form={form} setForm={setForm} type="text" placeholder="Ej: Manufactura metalmecánica" />
+                    {/* CUIT con botón buscar */}
+                    <div className="field">
+                      <label>CUIT</label>
+                      <div style={{ display:'flex', gap:6 }}>
+                        <input
+                          type="text"
+                          value={form.cuit}
+                          onChange={e => { setForm(f => ({ ...f, cuit: e.target.value })); setCuitError(''); setAfipData(null) }}
+                          onKeyDown={e => e.key === 'Enter' && buscarCuit()}
+                          placeholder="30-12345678-9"
+                          style={{ flex:1, padding:'8px 10px', border:`1px solid ${cuitError ? '#ef4444' : '#e2e8f0'}`, borderRadius:8, fontSize:14, fontFamily:'inherit' }}
+                        />
+                        <button
+                          onClick={buscarCuit}
+                          disabled={buscandoCuit}
+                          style={{ padding:'8px 14px', background:'#617ECA', color:'#fff', border:'none', borderRadius:8, fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}
+                        >
+                          {buscandoCuit ? '...' : '🔍 Buscar'}
+                        </button>
+                      </div>
+                      {cuitError && <div style={{ fontSize:11, color:'#ef4444', marginTop:4 }}>{cuitError}</div>}
+                    </div>
+
+                    <Campo label="Razón Social" id="razon" form={form} setForm={setForm} type="text" placeholder="Se completa automáticamente" />
+                    <Campo label="Sector / Actividad" id="sector" form={form} setForm={setForm} type="text" placeholder="Se completa automáticamente" />
                     <Campo label="Antigüedad (años)" id="antiguedad" form={form} setForm={setForm} />
                     <Campo label="Destino del financiamiento" id="destino" form={form} setForm={setForm} type="text" placeholder="Capital de trabajo, maquinaria..." span={1} />
                     <Campo label="Financiamiento solicitado ($K)" id="fin_sol" form={form} setForm={setForm} />
                   </div>
+
+                  {/* Panel chips AFIP */}
+                  {afipData && (
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:14, padding:'10px 14px', background:'#f4f6fc', borderRadius:8, border:'1px solid #e2e7f3' }}>
+                      {afipData.estadoClave && (
+                        <span style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:12, fontWeight:600, padding:'3px 10px', borderRadius:20,
+                          background: afipData.estadoClave === 'ACTIVO' ? '#dcfce7' : '#fee2e2',
+                          color:      afipData.estadoClave === 'ACTIVO' ? '#166534' : '#991b1b' }}>
+                          <span style={{ width:7, height:7, borderRadius:'50%', background: afipData.estadoClave === 'ACTIVO' ? '#16a34a' : '#dc2626', display:'inline-block' }} />
+                          {afipData.estadoClave}
+                        </span>
+                      )}
+                      {afipData.tipoPersona && (
+                        <span style={{ fontSize:12, fontWeight:600, padding:'3px 10px', borderRadius:20, background:'#eff6ff', color:'#1e40af' }}>
+                          {afipData.tipoPersona === 'JURIDICA' ? 'Persona jurídica' : 'Persona física'}
+                        </span>
+                      )}
+                      {afipData.mesCierre && (
+                        <span style={{ fontSize:12, padding:'3px 10px', borderRadius:20, background:'#f0fdf4', color:'#166534', fontWeight:500 }}>
+                          Cierre: {['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][parseInt(afipData.mesCierre,10)-1] || afipData.mesCierre}
+                        </span>
+                      )}
+                      {afipData.fechaInscripcion && (
+                        <span style={{ fontSize:12, padding:'3px 10px', borderRadius:20, background:'#fafafa', color:'#475569', border:'1px solid #e2e8f0' }}>
+                          Inscripta: {afipData.fechaInscripcion.slice(0,10)}
+                        </span>
+                      )}
+                      {afipData.domicilio && (
+                        <span style={{ fontSize:12, padding:'3px 10px', borderRadius:20, background:'#fafafa', color:'#475569', border:'1px solid #e2e8f0' }}>
+                          📍 {afipData.domicilio}
+                        </span>
+                      )}
+                      {afipData.actividad && (
+                        <span style={{ fontSize:12, padding:'3px 10px', borderRadius:20, background:'#fafafa', color:'#475569', border:'1px solid #e2e8f0', maxWidth:360, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}
+                          title={afipData.actividad}>
+                          🏭 {afipData.actividad}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
