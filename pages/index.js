@@ -1053,8 +1053,15 @@ export default function App() {
       const res  = await fetch(`/api/buscar-cuit?cuit=${cuitLimpio}`)
       const data = await res.json()
       if (res.ok) {
-        if (data.razonSocial) setForm(f => ({ ...f, razon: data.razonSocial }))
-        if (data.actividad)   setForm(f => ({ ...f, sector: data.actividad }))
+        const antiguedad = data.fechaInscripcion
+          ? Math.floor((Date.now() - new Date(data.fechaInscripcion)) / (1000 * 60 * 60 * 24 * 365.25))
+          : null
+        setForm(f => ({
+          ...f,
+          ...(data.razonSocial && { razon: data.razonSocial }),
+          ...(data.actividad   && { sector: data.actividad }),
+          ...(antiguedad !== null && antiguedad >= 0 && { antiguedad: String(antiguedad) }),
+        }))
         setAfipData({
           estadoClave:    data.estadoClave,
           tipoPersona:    data.tipoPersona,
