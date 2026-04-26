@@ -1503,12 +1503,6 @@ export default function App() {
                           📍 {afipData.domicilio}
                         </span>
                       )}
-                      {afipData.actividad && (
-                        <span style={{ fontSize:12, padding:'3px 10px', borderRadius:20, background:'#fafafa', color:'#475569', border:'1px solid #e2e8f0', maxWidth:360, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}
-                          title={afipData.actividad}>
-                          🏭 {afipData.actividad}
-                        </span>
-                      )}
                     </div>
                   )}
                 </div>
