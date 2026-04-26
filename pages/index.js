@@ -1471,14 +1471,15 @@ export default function App() {
                   </div>
 
                   {/* Separador operación */}
-                  <div style={{ margin:'16px 0 14px', borderTop:'1px dashed #e2e8f0' }} />
-                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
-                    <span style={{ fontSize:11, fontWeight:700, letterSpacing:.6, color:'#617ECA', textTransform:'uppercase' }}>Operación</span>
-                    <div style={{ flex:1, height:1, background:'#e8edf8' }} />
-                  </div>
-                  <div className="form-grid">
-                    <Campo label="Destino del financiamiento" id="destino" form={form} setForm={setForm} type="text" placeholder="Capital de trabajo, maquinaria..." span={1} />
-                    <Campo label="Financiamiento solicitado ($K)" id="fin_sol" form={form} setForm={setForm} />
+                  <div style={{ margin:'18px -20px 0', padding:'14px 20px 16px', background:'#fff7ed', borderTop:'1px solid #fed7aa', borderBottom:'1px solid #fed7aa' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
+                      <span style={{ fontSize:11, fontWeight:700, letterSpacing:.6, color:'#c2410c', textTransform:'uppercase' }}>Operación</span>
+                      <div style={{ flex:1, height:1, background:'#fdba74' }} />
+                    </div>
+                    <div className="form-grid">
+                      <Campo label="Destino del financiamiento" id="destino" form={form} setForm={setForm} type="text" placeholder="Capital de trabajo, maquinaria..." span={1} />
+                      <Campo label="Financiamiento solicitado ($K)" id="fin_sol" form={form} setForm={setForm} />
+                    </div>
                   </div>
                   {/* Panel chips AFIP */}
                   {afipData && (
