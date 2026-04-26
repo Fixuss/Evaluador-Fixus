@@ -1468,10 +1468,18 @@ export default function App() {
                     <Campo label="Razón Social" id="razon" form={form} setForm={setForm} type="text" placeholder="Se completa automáticamente" />
                     <Campo label="Sector / Actividad" id="sector" form={form} setForm={setForm} type="text" placeholder="Se completa automáticamente" />
                     <Campo label="Antigüedad (años)" id="antiguedad" form={form} setForm={setForm} />
+                  </div>
+
+                  {/* Separador operación */}
+                  <div style={{ margin:'16px 0 14px', borderTop:'1px dashed #e2e8f0' }} />
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
+                    <span style={{ fontSize:11, fontWeight:700, letterSpacing:.6, color:'#617ECA', textTransform:'uppercase' }}>Operación</span>
+                    <div style={{ flex:1, height:1, background:'#e8edf8' }} />
+                  </div>
+                  <div className="form-grid">
                     <Campo label="Destino del financiamiento" id="destino" form={form} setForm={setForm} type="text" placeholder="Capital de trabajo, maquinaria..." span={1} />
                     <Campo label="Financiamiento solicitado ($K)" id="fin_sol" form={form} setForm={setForm} />
                   </div>
-
                   {/* Panel chips AFIP */}
                   {afipData && (
                     <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:14, padding:'10px 14px', background:'#f4f6fc', borderRadius:8, border:'1px solid #e2e7f3' }}>
