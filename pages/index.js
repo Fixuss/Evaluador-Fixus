@@ -1056,11 +1056,18 @@ export default function App() {
         const antiguedad = data.fechaInscripcion
           ? Math.floor((Date.now() - new Date(data.fechaInscripcion)) / (1000 * 60 * 60 * 24 * 365.25))
           : null
+        // Cierre de ejercicio: mes de AFIP + año anterior
+        let cierreAFIP = ''
+        if (data.mesCierre) {
+          const anioAnterior = new Date().getFullYear() - 1
+          cierreAFIP = `${anioAnterior}-${String(data.mesCierre).padStart(2, '0')}`
+        }
         setForm(f => ({
           ...f,
           ...(data.razonSocial && { razon: data.razonSocial }),
           ...(data.actividad   && { sector: data.actividad }),
           ...(antiguedad !== null && antiguedad >= 0 && { antiguedad: String(antiguedad) }),
+          ...(cierreAFIP && { cierre_ejercicio: cierreAFIP }),
         }))
         setAfipData({
           estadoClave:    data.estadoClave,
