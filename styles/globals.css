@@ -79,7 +79,7 @@ body {
 
 .sidebar-logo .logo-img {
   width: 100%;
-  max-width: 200px;
+  max-width: 140px;
   height: auto;
   display: block;
   /* El SVG ya viene en versión monocromática blanca con fondo transparente,
