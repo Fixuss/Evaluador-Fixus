@@ -1419,7 +1419,7 @@ export default function App() {
         {/* Sidebar */}
         <aside className="sidebar">
           <div className="sidebar-logo">
-            <img src="/logo.svg" alt="Fixus — Consultora para PyMEs" className="logo-img" />
+            <img src="/logo_white.png" alt="Fixus — Consultora para PyMEs" className="logo-img" />
           </div>
           <nav className="sidebar-nav">
             {NAV.map(n => (
