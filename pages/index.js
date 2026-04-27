@@ -324,7 +324,80 @@ const CAT_LABELS = { tendencia:'Tendencia', deuda:'Deuda', solvencia:'Solvencia'
 const STATUS_LABELS = { approved:'Empresa elegible — puede avanzar', warning:'Elegible con observaciones', rejected:'No cumple los criterios mínimos' }
 const STATUS_ICONS  = { approved:'✓', warning:'⚠', rejected:'✗' }
 
-function PanelResultado({ resultado, onAgregar, onPDF, loading, pdfLoading }) {
+// ── Usuarios ───────────────────────────────────────────────────────────────
+// Cambiar los PINs antes de deployar
+const USUARIOS = [
+  { id: 'facundo',  nombre: 'Facundo Vallina',      pin: '1234', iniciales: 'FV' },
+  { id: 'leonardo', nombre: 'Leonardo Evangelista', pin: '5678', iniciales: 'LE' },
+]
+
+function LoginScreen({ onLogin }) {
+  const [selId, setSelId]   = useState(null)
+  const [pin, setPin]       = useState('')
+  const [error, setError]   = useState('')
+
+  const intentar = () => {
+    const user = USUARIOS.find(u => u.id === selId)
+    if (!user) return
+    if (pin === user.pin) { onLogin(user) }
+    else { setError('PIN incorrecto'); setPin('') }
+  }
+
+  return (
+    <div style={{
+      minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center',
+      background: 'radial-gradient(ellipse at 15% 0%, rgba(74,105,204,.12) 0%, transparent 55%), radial-gradient(ellipse at 85% 100%, rgba(14,44,80,.10) 0%, transparent 55%), linear-gradient(180deg, #d8e0ef 0%, #c8d2e6 100%)',
+    }}>
+      <div style={{ width:'100%', maxWidth:420, padding:'0 20px' }}>
+        <div style={{ textAlign:'center', marginBottom:32 }}>
+          <img src="/logo_dark.png" alt="Fixus" style={{ height:44, marginBottom:16 }} />
+          <div style={{ fontSize:15, color:'#4a5568', fontWeight:500 }}>Identificate para continuar</div>
+        </div>
+        <div style={{ background:'#fff', borderRadius:16, boxShadow:'0 2px 4px rgba(14,44,80,.06), 0 6px 18px rgba(14,44,80,.10), 0 20px 44px rgba(14,44,80,.13)', overflow:'hidden' }}>
+          <div style={{ display:'flex' }}>
+            {USUARIOS.map(u => (
+              <button key={u.id} onClick={() => { setSelId(u.id); setPin(''); setError('') }} style={{
+                flex:1, padding:'20px 16px', border:'none', cursor:'pointer',
+                background: selId === u.id ? '#0e2c50' : '#f8fafc',
+                borderBottom: selId === u.id ? 'none' : '1px solid #e2e8f0',
+                transition:'background .15s',
+              }}>
+                <div style={{ width:44, height:44, borderRadius:'50%', background: selId === u.id ? 'rgba(255,255,255,.15)' : '#eef2ff', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 10px', fontSize:15, fontWeight:700, color: selId === u.id ? '#fff' : '#4a69cc' }}>{u.iniciales}</div>
+                <div style={{ fontSize:13, fontWeight:600, color: selId === u.id ? '#fff' : '#1a2840' }}>{u.nombre.split(' ')[0]}</div>
+                <div style={{ fontSize:11, color: selId === u.id ? 'rgba(255,255,255,.6)' : '#94a3b8', marginTop:2 }}>{u.nombre.split(' ').slice(1).join(' ')}</div>
+              </button>
+            ))}
+          </div>
+          <div style={{ padding:'24px 28px' }}>
+            {selId ? (
+              <>
+                <label style={{ fontSize:11, fontWeight:600, color:'#64748b', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:8 }}>PIN de acceso</label>
+                <input
+                  type="password"
+                  value={pin}
+                  onChange={e => { setPin(e.target.value); setError('') }}
+                  onKeyDown={e => e.key === 'Enter' && intentar()}
+                  placeholder="••••"
+                  autoFocus
+                  style={{ width:'100%', padding:'10px 14px', fontSize:16, letterSpacing:4, border:`1px solid ${error ? '#dc2626' : '#e2e8f0'}`, borderRadius:8, outline:'none', fontFamily:'inherit', marginBottom:error ? 8 : 16, transition:'border-color .15s' }}
+                />
+                {error && <div style={{ fontSize:12, color:'#dc2626', marginBottom:12 }}>{error}</div>}
+                <button onClick={intentar} className="btn btn-primary" style={{ width:'100%', justifyContent:'center', padding:'11px' }}>
+                  Ingresar
+                </button>
+              </>
+            ) : (
+              <div style={{ textAlign:'center', color:'#94a3b8', fontSize:13, padding:'8px 0' }}>Seleccioná tu usuario arriba</div>
+            )}
+          </div>
+        </div>
+        <div style={{ textAlign:'center', marginTop:20, fontSize:11, color:'#94a3b8' }}>Fixus · Uso interno</div>
+      </div>
+    </div>
+  )
+}
+
+function PanelResultado({ resultado, onAgregar, onPDF, loading, pdfLoading, usuarioActual }) {
   const { r, elig, form, prestamo } = resultado
   const recomendable = prestamo && elig.score >= prestamo.umbral && r.ventas_mens > 0
 
@@ -354,6 +427,7 @@ function PanelResultado({ resultado, onAgregar, onPDF, loading, pdfLoading }) {
           <div><strong>Antigüedad:</strong> {form.antiguedad || 0} años</div>
           <div><strong>Financiamiento solicitado:</strong> {fmtK(form.fin_sol)}</div>
           <div><strong>Destino:</strong> {form.destino || '—'}</div>
+          <div><strong>Analista:</strong> {usuarioActual?.nombre || '—'}</div>
         </div>
         <div className="pdf-divider" />
       </div>
@@ -675,10 +749,11 @@ function PanelCriterios({ criterios, setCriterios, onSave, saving }) {
 // Determina si una entry del pipeline es apta para crédito (score sobre umbral + tiene prestamo + tiene ventas post)
 const esApta = e => e.prestamo && e.elig.score >= (e.prestamo.umbral ?? 70) && e.r.ventas_mens > 0
 
-function PanelPipeline({ pipeline, onDelete, onClear, onExport }) {
-  const [sortKey, setSortKey]   = useState('score')
-  const [sortDir, setSortDir]   = useState('desc')
-  const [soloAptas, setSoloAptas] = useState(false)
+function PanelPipeline({ pipeline, onDelete, onClear, onExport, usuarioActual }) {
+  const [sortKey, setSortKey]       = useState('score')
+  const [sortDir, setSortDir]       = useState('desc')
+  const [soloAptas, setSoloAptas]   = useState(false)
+  const [filtroEjec, setFiltroEjec] = useState('todos')
 
   const aptas = pipeline.filter(esApta)
   const sumCP = aptas.reduce((s, e) => s + (e.prestamo?.cp || 0), 0)
@@ -691,7 +766,8 @@ function PanelPipeline({ pipeline, onDelete, onClear, onExport }) {
     aptas:     aptas.length,
   }
 
-  const filtradas = soloAptas ? aptas : pipeline
+  const porEjec = filtroEjec === 'todos' ? pipeline : pipeline.filter(e => e.ejecutivo === filtroEjec)
+  const filtradas = soloAptas ? porEjec.filter(esApta) : porEjec
   const sortVal = (e, k) => {
     switch (k) {
       case 'razon':   return (e.form.razon || '').toLowerCase()
@@ -767,8 +843,8 @@ function PanelPipeline({ pipeline, onDelete, onClear, onExport }) {
       )}
 
       {/* Acciones + filtro */}
-      <div style={{ display:'flex', gap:10, margin:'16px 0', alignItems:'center' }}>
-        <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, color:'var(--ink-2)', fontWeight:500 }}>
+      <div style={{ display:'flex', gap:10, margin:'16px 0', alignItems:'center', flexWrap:'wrap' }}>
+        <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, fontWeight:500 }}>
           <input
             type="checkbox"
             checked={soloAptas}
@@ -776,8 +852,19 @@ function PanelPipeline({ pipeline, onDelete, onClear, onExport }) {
             style={{ width:16, height:16, cursor:'pointer', accentColor:'#4F46E5' }}
           />
           <span>Ver sólo aptas para crédito</span>
-          {soloAptas && <span style={{ fontSize:11, color:'#64748B' }}>({aptas.length} de {pipeline.length})</span>}
+          {soloAptas && <span style={{ fontSize:11, color:'#64748B' }}>({aptas.filter(e => filtroEjec==='todos'||e.ejecutivo===filtroEjec).length} de {pipeline.length})</span>}
         </label>
+        <div style={{ display:'flex', borderRadius:8, border:'1px solid #e2e8f0', overflow:'hidden', background:'#fff', marginLeft:8 }}>
+          {['todos', ...USUARIOS.map(u => u.nombre)].map((op, i) => (
+            <button key={op} onClick={() => setFiltroEjec(op)} style={{
+              padding:'6px 14px', border:'none', borderLeft: i > 0 ? '1px solid #e2e8f0' : 'none',
+              fontSize:12, fontWeight:600, cursor:'pointer',
+              background: filtroEjec === op ? '#0e2c50' : '#fff',
+              color: filtroEjec === op ? '#fff' : '#64748b',
+              transition:'background .15s',
+            }}>{op === 'todos' ? 'Todos' : op.split(' ')[0]}</button>
+          ))}
+        </div>
         <div style={{ marginLeft:'auto', display:'flex', gap:10 }}>
           <button className="btn btn-ghost" onClick={onExport} disabled={!pipeline.length}>📥 Exportar CSV</button>
           <button className="btn btn-danger" onClick={onClear} disabled={!pipeline.length}>🗑 Limpiar pipeline</button>
@@ -811,6 +898,7 @@ function PanelPipeline({ pipeline, onDelete, onClear, onExport }) {
                   <th {...thSort('score')}>Score{arrow('score')}</th>
                   <th {...thSort('credito')}>Crédito sugerido{arrow('credito')}</th>
                   <th {...thSort('estado')}>Estado{arrow('estado')}</th>
+                  <th>Ejecutivo</th>
                   <th></th>
                 </tr>
               </thead>
@@ -845,6 +933,9 @@ function PanelPipeline({ pipeline, onDelete, onClear, onExport }) {
                         <span className={`status-badge ${e.elig.status}`}>
                           {STATUS_ICONS[e.elig.status]} {e.elig.status === 'approved' ? 'Elegible' : e.elig.status === 'warning' ? 'Con obs.' : 'No elegible'}
                         </span>
+                      </td>
+                      <td style={{ fontSize:11, color:'#64748b', whiteSpace:'nowrap' }}>
+                        {e.ejecutivo ? e.ejecutivo.split(' ').slice(0,2).join(' ') : '—'}
                       </td>
                       <td>
                         <button className="btn btn-ghost" style={{ padding:'4px 10px', fontSize:11 }} onClick={() => onDelete(e.id)}>✕</button>
@@ -1023,6 +1114,27 @@ function PanelPerfil({ form, setForm, perfilesList, onLoad, onNew, onDelete, onS
 }
 
 export default function App() {
+  const [usuarioActual, setUsuarioActual] = useState(null)
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('fixus_usuario')
+      if (saved) {
+        const u = JSON.parse(saved)
+        if (USUARIOS.find(x => x.id === u.id)) setUsuarioActual(u)
+      }
+    } catch {}
+  }, [])
+
+  const handleLogin = (user) => {
+    localStorage.setItem('fixus_usuario', JSON.stringify({ id: user.id, nombre: user.nombre, iniciales: user.iniciales }))
+    setUsuarioActual(user)
+  }
+  const handleLogout = () => {
+    localStorage.removeItem('fixus_usuario')
+    setUsuarioActual(null)
+  }
+
   const [tab, setTab] = useState('form')
   const [form, setForm] = useState(FORM_EMPTY)
   const [resultado, setResultado] = useState(null)
@@ -1209,7 +1321,7 @@ export default function App() {
   const agregarPipeline = async () => {
     if (!resultado) return
     setLoading(true)
-    const entry = { id: Date.now() + '-' + resultado.form.razon, ...resultado }
+    const entry = { id: Date.now() + '-' + resultado.form.razon, ...resultado, ejecutivo: usuarioActual.nombre }
     await fetch('/api/pipeline', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1361,7 +1473,7 @@ export default function App() {
   }
 
   const exportarCSV = () => {
-    const headers = ['Empresa','CUIT','Sector','Antigüedad','Ventas','EBITDA','Mg.EBITDA%','Liquidez','Endeudamiento','CT','D/Ventas(m)','D/EBITDA(m)','Score','Estado','Pidió($K)','Sug.CP($K)','Sug.LP($K)','Recomendable']
+    const headers = ['Empresa','CUIT','Sector','Antigüedad','Ventas','EBITDA','Mg.EBITDA%','Liquidez','Endeudamiento','CT','D/Ventas(m)','D/EBITDA(m)','Score','Estado','Pidió($K)','Sug.CP($K)','Sug.LP($K)','Recomendable','Ejecutivo']
     const rows = pipeline.map(e => {
       const p = e.prestamo
       const apto = p && e.elig.score >= (p.umbral ?? 70) && e.r.ventas_mens > 0
@@ -1375,7 +1487,8 @@ export default function App() {
         e.form.fin_sol || 0,
         apto ? Math.round(p.cp) : '',
         apto ? Math.round(p.lp) : '',
-        apto ? 'sí' : 'no'
+        apto ? 'sí' : 'no',
+        e.ejecutivo || ''
       ]
     })
     const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n')
@@ -1407,6 +1520,8 @@ export default function App() {
     { id:'pipeline',  label:'Pipeline',           icon:'◈', badge: pipeline.length },
   ]
 
+  if (!usuarioActual) return <LoginScreen onLogin={handleLogin} />
+
   return (
     <>
       <Head>
@@ -1430,8 +1545,20 @@ export default function App() {
               </button>
             ))}
           </nav>
-          <div style={{ padding:'16px 24px', borderTop:'1px solid rgba(255,255,255,.08)' }}>
-            <div style={{ fontSize:10, color:'rgba(255,255,255,.25)', textTransform:'uppercase', letterSpacing:'.08em' }}>v1.0 · Fixus 2025</div>
+          <div style={{ padding:'14px 16px', borderTop:'1px solid rgba(255,255,255,.08)' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <div style={{ width:32, height:32, borderRadius:'50%', background:'rgba(255,255,255,.12)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color:'#fff', flexShrink:0 }}>
+                {usuarioActual.iniciales}
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:'rgba(255,255,255,.85)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{usuarioActual.nombre}</div>
+                <button onClick={handleLogout} style={{ fontSize:10, color:'rgba(255,255,255,.35)', background:'none', border:'none', cursor:'pointer', padding:0, fontFamily:'inherit', transition:'color .15s' }}
+                  onMouseEnter={e => e.target.style.color='rgba(255,255,255,.65)'}
+                  onMouseLeave={e => e.target.style.color='rgba(255,255,255,.35)'}>
+                  Cerrar sesión
+                </button>
+              </div>
+            </div>
           </div>
         </aside>
 
@@ -1645,7 +1772,7 @@ export default function App() {
                 <div className="page-sub">{resultado ? `${resultado.form.sector} · CUIT ${resultado.form.cuit}` : 'Analizá una empresa primero'}</div>
               </div>
               {resultado
-                ? <PanelResultado resultado={resultado} onAgregar={agregarPipeline} onPDF={generarPDF} loading={loading} pdfLoading={pdfLoading} />
+                ? <PanelResultado resultado={resultado} onAgregar={agregarPipeline} onPDF={generarPDF} loading={loading} pdfLoading={pdfLoading} usuarioActual={usuarioActual} />
                 : (
                   <div className="empty-state card">
                     <div className="empty-icon">◎</div>
@@ -1701,7 +1828,7 @@ export default function App() {
                 <div className="page-title">Pipeline</div>
                 <div className="page-sub">{pipeline.length} empresa{pipeline.length !== 1 ? 's' : ''} analizadas · guardado automáticamente</div>
               </div>
-              <PanelPipeline pipeline={pipeline} onDelete={eliminarEmpresa} onClear={limpiarPipeline} onExport={exportarCSV} />
+              <PanelPipeline pipeline={pipeline} onDelete={eliminarEmpresa} onClear={limpiarPipeline} onExport={exportarCSV} usuarioActual={usuarioActual} />
             </>
           )}
         </main>
