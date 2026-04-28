@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Head from 'next/head'
 import { calcularRatios, evalElegibilidad, CRITERIOS_DEFAULT } from '../lib/financial'
-import { PERFIL_EMPTY, PERFIL_SECCIONES, buildResena, normalizeRazon } from '../lib/perfil'
+import { PERFIL_EMPTY, PERFIL_SECCIONES, buildResena, normalizeRazon, normalizePerfil } from '../lib/perfil'
 
 // ── helpers ────────────────────────────────────────────────────────────────
 const fmt = (n, dec = 0) => Number(n).toLocaleString('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec })
@@ -954,11 +954,323 @@ function PanelPipeline({ pipeline, onDelete, onClear, onExport, usuarioActual })
 
 // ── APP PRINCIPAL ──────────────────────────────────────────────────────────
 // ── PANEL PERFIL CUALITATIVO ───────────────────────────────────────────────
+
+const TBL_INPUT = {
+  width:'100%', padding:'8px 10px', fontSize:13,
+  border:'1px solid #c9d2ee', borderRadius:7, background:'#fff',
+  fontFamily:'inherit', outline:'none', color:'#1a2840',
+}
+const TBL_TH = {
+  padding:'9px 10px', textAlign:'left', background:'#eef2ff',
+  borderBottom:'2px solid #c9d2ee', fontSize:12, fontWeight:700,
+  color:'#4a69cc', textTransform:'uppercase', letterSpacing:'.04em',
+}
+
+function CampoAccionistas({ label, form, setForm, style }) {
+  const accionistas = form.accionistas || []
+  const update = (i, field, value) =>
+    setForm(f => { const a = [...(f.accionistas||[])]; a[i] = {...a[i],[field]:value}; return {...f,accionistas:a} })
+  const add = () =>
+    setForm(f => ({ ...f, accionistas: [...(f.accionistas||[]), {nombre:'',participacion:'',cuit:'',rol:''}] }))
+  const remove = (i) =>
+    setForm(f => ({ ...f, accionistas: (f.accionistas||[]).filter((_,j) => j!==i) }))
+  return (
+    <div className="field" style={{ ...style, gridColumn:'span 2' }}>
+      <label style={{ marginBottom:8, display:'block' }}>{label}</label>
+      <div style={{ overflowX:'auto' }}>
+        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+          <thead><tr>
+            {['Nombre / Razón Social','% Participación','CUIT','Rol'].map(h => <th key={h} style={TBL_TH}>{h}</th>)}
+            <th style={{ ...TBL_TH, width:36 }} />
+          </tr></thead>
+          <tbody>
+            {accionistas.map((a, i) => (
+              <tr key={i} style={{ borderBottom:'1px solid #e8edf8' }}>
+                <td style={{ padding:'6px 4px' }}><input type="text" value={a.nombre} onChange={e=>update(i,'nombre',e.target.value)} placeholder="Nombre o razón social" style={TBL_INPUT} /></td>
+                <td style={{ padding:'6px 4px', width:120 }}><input type="text" value={a.participacion} onChange={e=>update(i,'participacion',e.target.value)} placeholder="ej. 50%" style={TBL_INPUT} /></td>
+                <td style={{ padding:'6px 4px', width:160 }}><input type="text" value={a.cuit} onChange={e=>update(i,'cuit',e.target.value)} placeholder="XX-XXXXXXXX-X" style={TBL_INPUT} /></td>
+                <td style={{ padding:'6px 4px' }}><input type="text" value={a.rol} onChange={e=>update(i,'rol',e.target.value)} placeholder="Presidente, Gerente…" style={TBL_INPUT} /></td>
+                <td style={{ padding:'6px 4px', textAlign:'center' }}>
+                  {accionistas.length > 1 && (
+                    <button onClick={()=>remove(i)} style={{ background:'none',border:'none',cursor:'pointer',color:'#DC2626',fontSize:18,lineHeight:1 }}>×</button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <button className="btn btn-ghost" onClick={add} style={{ marginTop:8, fontSize:12 }}>+ Agregar accionista</button>
+    </div>
+  )
+}
+
+function CampoTablaContactos({ label, fieldId, colPct, form, setForm, style }) {
+  const items = form[fieldId] || []
+  const update = (i, field, value) =>
+    setForm(f => { const a = [...(f[fieldId]||[])]; a[i] = {...a[i],[field]:value}; return {...f,[fieldId]:a} })
+  return (
+    <div className="field" style={{ ...style, gridColumn:'span 2' }}>
+      <label style={{ marginBottom:8, display:'block' }}>{label}</label>
+      <div style={{ overflowX:'auto' }}>
+        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+          <thead><tr>
+            <th style={{ ...TBL_TH, width:28 }}>#</th>
+            <th style={TBL_TH}>Nombre / Razón Social</th>
+            <th style={{ ...TBL_TH, width:165 }}>CUIT</th>
+            <th style={{ ...TBL_TH, width:145 }}>{colPct}</th>
+          </tr></thead>
+          <tbody>
+            {items.map((item, i) => (
+              <tr key={i} style={{ borderBottom:'1px solid #e8edf8' }}>
+                <td style={{ padding:'6px 8px', textAlign:'center', color:'#94a3b8', fontWeight:700, fontSize:12 }}>{i+1}</td>
+                <td style={{ padding:'6px 4px' }}><input type="text" value={item.nombre} onChange={e=>update(i,'nombre',e.target.value)} placeholder="Nombre o razón social" style={TBL_INPUT} /></td>
+                <td style={{ padding:'6px 4px' }}><input type="text" value={item.cuit} onChange={e=>update(i,'cuit',e.target.value)} placeholder="XX-XXXXXXXX-X" style={TBL_INPUT} /></td>
+                <td style={{ padding:'6px 4px' }}><input type="text" value={item.porcentaje} onChange={e=>update(i,'porcentaje',e.target.value)} placeholder="ej. 25%" style={TBL_INPUT} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function generarFormularioHTML(p) {
+  const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+  const accs = Array.isArray(p.accionistas) && p.accionistas.length ? p.accionistas : [{nombre:'',participacion:'',cuit:'',rol:''},{nombre:'',participacion:'',cuit:'',rol:''}]
+  const clis = Array.isArray(p.clientes_tabla) && p.clientes_tabla.length===4 ? p.clientes_tabla : Array(4).fill(null).map(()=>({nombre:'',cuit:'',porcentaje:''}))
+  const provs = Array.isArray(p.proveedores_tabla) && p.proveedores_tabla.length===4 ? p.proveedores_tabla : Array(4).fill(null).map(()=>({nombre:'',cuit:'',porcentaje:''}))
+  const accRows = accs.map((a,i) => `<tr>
+    <td><input type="text" data-acc="${i}_nombre" value="${esc(a.nombre)}" placeholder="Nombre o razón social"></td>
+    <td><input type="text" data-acc="${i}_participacion" value="${esc(a.participacion)}" placeholder="ej. 50%"></td>
+    <td><input type="text" data-acc="${i}_cuit" value="${esc(a.cuit)}" placeholder="XX-XXXXXXXX-X"></td>
+    <td><input type="text" data-acc="${i}_rol" value="${esc(a.rol)}" placeholder="Presidente, Gerente…"></td>
+  </tr>`).join('')
+  const cliRows = clis.map((c,i) => `<tr>
+    <td class="rn">${i+1}</td>
+    <td><input type="text" id="cl_${i}_nombre" value="${esc(c.nombre)}" placeholder="Nombre o razón social"></td>
+    <td><input type="text" id="cl_${i}_cuit" value="${esc(c.cuit)}" placeholder="XX-XXXXXXXX-X"></td>
+    <td><input type="text" id="cl_${i}_porcentaje" value="${esc(c.porcentaje)}" placeholder="ej. 25%"></td>
+  </tr>`).join('')
+  const prvRows = provs.map((pr,i) => `<tr>
+    <td class="rn">${i+1}</td>
+    <td><input type="text" id="pr_${i}_nombre" value="${esc(pr.nombre)}" placeholder="Nombre o razón social"></td>
+    <td><input type="text" id="pr_${i}_cuit" value="${esc(pr.cuit)}" placeholder="XX-XXXXXXXX-X"></td>
+    <td><input type="text" id="pr_${i}_porcentaje" value="${esc(pr.porcentaje)}" placeholder="ej. 30%"></td>
+  </tr>`).join('')
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Formulario Perfil${p.razon ? ' — ' + esc(p.razon) : ''} · Fixus</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#eef2f8;color:#1a2840;-webkit-font-smoothing:antialiased}
+.wrap{max-width:820px;margin:0 auto;padding:24px 16px}
+header{background:#0e2c50;color:#fff;padding:28px 32px;border-radius:12px;margin-bottom:20px}
+header h1{font-size:22px;font-weight:700;margin-bottom:4px}
+header p.sub{font-size:13px;opacity:.75;margin-bottom:12px}
+header .instr{padding:12px 14px;background:rgba(255,255,255,.12);border-radius:8px;font-size:13px;line-height:1.6}
+.sec{background:#fff;border-radius:12px;border:1px solid rgba(14,44,80,.07);box-shadow:0 2px 8px rgba(14,44,80,.08);margin-bottom:16px;overflow:hidden}
+.sec-hd{padding:13px 20px;background:linear-gradient(180deg,rgba(74,105,204,.10) 0%,rgba(74,105,204,.02) 100%);border-bottom:1px solid rgba(14,44,80,.06);position:relative}
+.sec-hd::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#4a69cc,#6e8fe0)}
+.sec-hd h2{font-size:14px;font-weight:700;color:#0e2c50}
+.sec-bd{padding:18px 20px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px}
+.f{display:flex;flex-direction:column;gap:5px}
+.f.s2{grid-column:span 2}
+.f label{font-size:11.5px;font-weight:700;color:#4a69cc;text-transform:uppercase;letter-spacing:.05em}
+input[type=text],input[type=date],textarea{width:100%;padding:10px 12px;font-size:13px;border:1px solid #c9d2ee;border-radius:8px;background:#fff;font-family:inherit;outline:none;transition:border-color .2s,box-shadow .2s;color:#1a2840}
+input:focus,textarea:focus{border-color:#4a69cc;box-shadow:0 0 0 3px rgba(74,105,204,.15)}
+textarea{resize:vertical;line-height:1.5}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{padding:9px 10px;text-align:left;background:#eef2ff;border-bottom:2px solid #c9d2ee;font-size:11.5px;font-weight:700;color:#4a69cc;text-transform:uppercase;letter-spacing:.04em}
+td{padding:6px 4px;border-bottom:1px solid #e8edf8}
+td.rn{text-align:center;color:#94a3b8;font-weight:700;font-size:12px;width:28px;padding:6px 8px}
+td input{border-radius:6px}
+.add-btn{display:inline-flex;align-items:center;gap:5px;margin-top:10px;padding:7px 14px;font-size:12px;background:none;border:1px solid #c9d2ee;border-radius:7px;cursor:pointer;color:#4a69cc;font-weight:600}
+.add-btn:hover{background:#eef2ff}
+.actions{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap}
+.btn-exp{padding:13px 26px;background:#4a69cc;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer}
+.btn-exp:hover{background:#3a59bc}
+.btn-prn{padding:13px 26px;background:#fff;color:#0e2c50;border:1.5px solid #c9d2ee;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer}
+.btn-prn:hover{background:#f8faff}
+.ok{display:none;padding:12px 16px;background:#ECFDF5;border:1px solid #86EFAC;border-radius:8px;color:#065F46;font-size:13px;margin-top:12px}
+@media print{.actions{display:none}body{background:#fff}.sec{box-shadow:none}}
+@media(max-width:600px){.grid{grid-template-columns:1fr}.f.s2{grid-column:span 1}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Formulario de Perfil Empresarial</h1>
+  <p class="sub">Fixus — Consultora para PyMEs</p>
+  <div class="instr"><strong>Instrucciones:</strong> Complete los campos del formulario con la información de su empresa. Al finalizar, haga clic en <strong>"Descargar datos completados"</strong> para generar el archivo que deberá enviar al analista. También puede imprimir el formulario con el botón correspondiente.</div>
+</header>
+
+<div class="sec">
+  <div class="sec-hd"><h2>1. Identificación</h2></div>
+  <div class="sec-bd"><div class="grid">
+    <div class="f s2"><label>Razón Social *</label><input type="text" id="razon" value="${esc(p.razon)}" placeholder="Nombre legal de la empresa"></div>
+    <div class="f"><label>CUIT</label><input type="text" id="cuit" value="${esc(p.cuit)}" placeholder="XX-XXXXXXXX-X"></div>
+    <div class="f"><label>Sector / Rubro</label><input type="text" id="sector" value="${esc(p.sector)}" placeholder="ej. Industria manufacturera"></div>
+    <div class="f"><label>Forma jurídica</label><input type="text" id="forma_juridica" value="${esc(p.forma_juridica)}" placeholder="SA, SRL, Unipersonal…"></div>
+    <div class="f"><label>Fecha de constitución</label><input type="date" id="fecha_constitucion" value="${esc(p.fecha_constitucion)}"></div>
+  </div></div>
+</div>
+
+<div class="sec">
+  <div class="sec-hd"><h2>2. Ubicación</h2></div>
+  <div class="sec-bd"><div class="grid">
+    <div class="f s2"><label>Domicilio</label><input type="text" id="domicilio" value="${esc(p.domicilio)}" placeholder="Calle y número"></div>
+    <div class="f"><label>Localidad</label><input type="text" id="localidad" value="${esc(p.localidad)}" placeholder="Ciudad o localidad"></div>
+    <div class="f"><label>Provincia</label><input type="text" id="provincia" value="${esc(p.provincia)}" placeholder="Buenos Aires"></div>
+  </div></div>
+</div>
+
+<div class="sec">
+  <div class="sec-hd"><h2>3. Dimensión</h2></div>
+  <div class="sec-bd"><div class="grid">
+    <div class="f"><label>Cantidad de empleados</label><input type="text" id="empleados" value="${esc(p.empleados)}" placeholder="ej. 25"></div>
+    <div class="f"><label>Facturación aproximada</label><input type="text" id="facturacion_aprox" value="${esc(p.facturacion_aprox)}" placeholder="ej. $500M anuales"></div>
+  </div></div>
+</div>
+
+<div class="sec">
+  <div class="sec-hd"><h2>4. Narrativa del negocio</h2></div>
+  <div class="sec-bd"><div class="grid">
+    <div class="f s2"><label>Historia y origen</label><textarea id="historia" rows="4" placeholder="Año de inicio, fundadores, hitos de crecimiento, cambios relevantes…">${esc(p.historia)}</textarea></div>
+    <div class="f s2">
+      <label>Accionistas y conducción</label>
+      <table><thead><tr>
+        <th>Nombre / Razón Social</th><th style="width:130px">% Participación</th><th style="width:160px">CUIT</th><th>Rol</th>
+      </tr></thead>
+      <tbody id="acc-body">${accRows}</tbody></table>
+      <button class="add-btn" onclick="addAcc()">+ Agregar accionista</button>
+    </div>
+    <div class="f s2"><label>Modelo de negocio</label><textarea id="negocio" rows="4" placeholder="A qué se dedica, cómo genera ingresos, ventaja competitiva…">${esc(p.negocio)}</textarea></div>
+    <div class="f s2"><label>Destino de los fondos solicitados</label><textarea id="destino_fondos" rows="2" placeholder="Capital de trabajo, maquinaria, expansión, inventario…">${esc(p.destino_fondos)}</textarea></div>
+    <div class="f s2"><label>Productos y servicios</label><textarea id="productos" rows="3" placeholder="Línea de productos/servicios principales, mix, estacionalidad">${esc(p.productos)}</textarea></div>
+    <div class="f s2"><label>Canales comerciales</label><textarea id="canales" rows="2" placeholder="Venta directa, distribuidores, e-commerce, exportación…">${esc(p.canales)}</textarea></div>
+  </div></div>
+</div>
+
+<div class="sec">
+  <div class="sec-hd"><h2>5. Mercado — cartera comercial</h2></div>
+  <div class="sec-bd"><div class="grid">
+    <div class="f s2">
+      <label>Principales clientes</label>
+      <table><thead><tr><th style="width:28px">#</th><th>Nombre / Razón Social</th><th style="width:160px">CUIT</th><th style="width:140px">% de facturación</th></tr></thead>
+      <tbody>${cliRows}</tbody></table>
+    </div>
+    <div class="f s2">
+      <label>Principales proveedores</label>
+      <table><thead><tr><th style="width:28px">#</th><th>Nombre / Razón Social</th><th style="width:160px">CUIT</th><th style="width:140px">% de compras</th></tr></thead>
+      <tbody>${prvRows}</tbody></table>
+    </div>
+  </div></div>
+</div>
+
+<div class="sec">
+  <div class="sec-hd"><h2>6. Infraestructura y operaciones</h2></div>
+  <div class="sec-bd"><div class="grid">
+    <div class="f s2"><label>Instalaciones y activos productivos</label><textarea id="infraestructura" rows="3" placeholder="Planta, oficinas, sucursales, vehículos, maquinaria relevante">${esc(p.infraestructura)}</textarea></div>
+    <div class="f s2"><label>Certificaciones / habilitaciones / reconocimientos</label><textarea id="certificaciones" rows="2">${esc(p.certificaciones)}</textarea></div>
+  </div></div>
+</div>
+
+<div class="sec">
+  <div class="sec-hd"><h2>7. Contexto estratégico</h2></div>
+  <div class="sec-bd"><div class="grid">
+    <div class="f s2"><label>¿Cuáles son las principales ventajas competitivas frente a la competencia?</label><textarea id="ventajas_competitivas" rows="3" placeholder="Marca, know-how, equipo, tecnología, precio, calidad…">${esc(p.ventajas_competitivas)}</textarea></div>
+    <div class="f s2"><label>¿Cuáles son los principales riesgos o desafíos que enfrenta actualmente?</label><textarea id="riesgos_principales" rows="3" placeholder="Contexto económico, competencia, capacidad operativa, regulación…">${esc(p.riesgos_principales)}</textarea></div>
+    <div class="f s2"><label>¿Qué oportunidades de crecimiento identifica en el corto y mediano plazo?</label><textarea id="oportunidades_crecimiento" rows="3" placeholder="Nuevos mercados, productos, clientes, exportación…">${esc(p.oportunidades_crecimiento)}</textarea></div>
+    <div class="f s2"><label>¿Existe dependencia crítica de algún cliente, proveedor, persona clave o tecnología?</label><textarea id="dependencias_clave" rows="3" placeholder="Describir si hay concentración relevante en alguna relación clave…">${esc(p.dependencias_clave)}</textarea></div>
+  </div></div>
+</div>
+
+<div class="sec">
+  <div class="sec-hd"><h2>8. Información adicional</h2></div>
+  <div class="sec-bd"><div class="grid">
+    <div class="f s2"><label>Comentarios adicionales</label><textarea id="observaciones" rows="3" placeholder="Cualquier información relevante no cubierta anteriormente…">${esc(p.observaciones)}</textarea></div>
+  </div></div>
+</div>
+
+<div class="actions">
+  <button class="btn-exp" onclick="exportJSON()">⬇ Descargar datos completados</button>
+  <button class="btn-prn" onclick="window.print()">🖨 Imprimir / Guardar PDF</button>
+</div>
+<div class="ok" id="ok-msg">✓ Archivo descargado. Envielo al analista para cargar los datos automáticamente.</div>
+
+</div>
+<script>
+let accN=${accs.length};
+function addAcc(){
+  const b=document.getElementById('acc-body'),i=accN++;
+  const tr=document.createElement('tr');
+  tr.innerHTML=\`<td><input type="text" data-acc="\${i}_nombre" placeholder="Nombre o razón social"></td><td><input type="text" data-acc="\${i}_participacion" placeholder="ej. 50%"></td><td><input type="text" data-acc="\${i}_cuit" placeholder="XX-XXXXXXXX-X"></td><td><input type="text" data-acc="\${i}_rol" placeholder="Presidente, Gerente…"></td>\`;
+  b.appendChild(tr);
+}
+function exportJSON(){
+  const v=id=>(document.getElementById(id)||{}).value||'';
+  const d={
+    razon:v('razon'),cuit:v('cuit'),sector:v('sector'),forma_juridica:v('forma_juridica'),fecha_constitucion:v('fecha_constitucion'),
+    localidad:v('localidad'),provincia:v('provincia'),domicilio:v('domicilio'),
+    empleados:v('empleados'),facturacion_aprox:v('facturacion_aprox'),
+    historia:v('historia'),negocio:v('negocio'),destino_fondos:v('destino_fondos'),
+    productos:v('productos'),canales:v('canales'),infraestructura:v('infraestructura'),
+    certificaciones:v('certificaciones'),ventajas_competitivas:v('ventajas_competitivas'),
+    riesgos_principales:v('riesgos_principales'),oportunidades_crecimiento:v('oportunidades_crecimiento'),
+    dependencias_clave:v('dependencias_clave'),observaciones:v('observaciones'),
+    accionistas:[],clientes_tabla:[],proveedores_tabla:[]
+  };
+  const m={};
+  document.querySelectorAll('[data-acc]').forEach(el=>{
+    const[r,f]=el.dataset.acc.split('_');
+    const ri=parseInt(r);
+    if(!m[ri])m[ri]={nombre:'',participacion:'',cuit:'',rol:''};
+    m[ri][f]=el.value;
+  });
+  d.accionistas=Object.values(m).filter(a=>a.nombre||a.cuit);
+  if(!d.accionistas.length)d.accionistas=[{nombre:'',participacion:'',cuit:'',rol:''}];
+  for(let i=0;i<4;i++){
+    d.clientes_tabla.push({nombre:v('cl_'+i+'_nombre'),cuit:v('cl_'+i+'_cuit'),porcentaje:v('cl_'+i+'_porcentaje')});
+    d.proveedores_tabla.push({nombre:v('pr_'+i+'_nombre'),cuit:v('pr_'+i+'_cuit'),porcentaje:v('pr_'+i+'_porcentaje')});
+  }
+  const blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='perfil_'+(d.razon||'empresa').replace(/[^a-zA-Z0-9]/g,'_').substring(0,30)+'.json';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  const ok=document.getElementById('ok-msg');
+  ok.style.display='block';
+  setTimeout(()=>ok.style.display='none',6000);
+}
+</script>
+</body>
+</html>`
+}
+
 function CampoPerfil({ def, form, setForm }) {
   const { id, label, type = 'text', placeholder = '', rows = 3, span = 1, required = false } = def
   const val = form[id] ?? ''
   const onChange = e => setForm(f => ({ ...f, [id]: e.target.value }))
   const style = span > 1 ? { gridColumn: `span ${span}` } : {}
+
+  if (type === 'accionistas') {
+    return <CampoAccionistas label={label} form={form} setForm={setForm} style={style} />
+  }
+  if (type === 'clientes_tabla') {
+    return <CampoTablaContactos label={label} fieldId="clientes_tabla" colPct="% de facturación" form={form} setForm={setForm} style={style} />
+  }
+  if (type === 'proveedores_tabla') {
+    return <CampoTablaContactos label={label} fieldId="proveedores_tabla" colPct="% de compras" form={form} setForm={setForm} style={style} />
+  }
 
   return (
     <div className="field" style={style}>
@@ -981,8 +1293,36 @@ function CampoPerfil({ def, form, setForm }) {
   )
 }
 
-function PanelPerfil({ form, setForm, perfilesList, onLoad, onNew, onDelete, onSave, saving, pipelineMatch, resenaVisible, setResenaVisible, onPDF, pdfLoading }) {
+function PanelPerfil({ form, setForm, perfilesList, onLoad, onNew, onDelete, onSave, saving, pipelineMatch, resenaVisible, setResenaVisible, onPDF, pdfLoading, onCargarFormulario }) {
   const resena = useMemo(() => buildResena(form, pipelineMatch), [form, pipelineMatch])
+  const fileInputRef = useRef(null)
+
+  const handleDescargar = () => {
+    const html = generarFormularioHTML(form)
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'formulario_' + (form.razon || 'empresa').replace(/[^a-zA-Z0-9]/g,'_').substring(0,30) + '.html'
+    document.body.appendChild(a); a.click(); document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const handleCargarFile = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result)
+        onCargarFormulario(data)
+      } catch {
+        alert('El archivo no es un JSON válido. Asegurate de cargar el archivo exportado por el formulario.')
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
   const fechaInforme = new Date().toLocaleDateString('es-AR', { day:'2-digit', month:'long', year:'numeric' })
   const perfilKey = normalizeRazon(form.razon)
 
@@ -1039,6 +1379,27 @@ function PanelPerfil({ form, setForm, perfilesList, onLoad, onNew, onDelete, onS
           </div>
         </div>
       ))}
+
+      {/* Formulario para el cliente */}
+      <div className="card section-gap" style={{ background:'linear-gradient(135deg,#f8faff 0%,#eef2ff 100%)', border:'1px solid rgba(74,105,204,.18)' }}>
+        <div style={{ padding:'14px 20px' }}>
+          <div style={{ fontSize:12, fontWeight:700, color:'#4a69cc', textTransform:'uppercase', letterSpacing:'.05em', marginBottom:10 }}>
+            Formulario para el cliente
+          </div>
+          <div style={{ fontSize:13, color:'#475569', marginBottom:14, lineHeight:1.5 }}>
+            Descargá el formulario, enviaselo al cliente para que lo complete y luego cargalo para auto-completar el perfil.
+          </div>
+          <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
+            <button className="btn btn-ghost sim-btn" onClick={handleDescargar} style={{ fontSize:13 }}>
+              ⬇ Descargar formulario
+            </button>
+            <button className="btn btn-ghost sim-btn" onClick={() => fileInputRef.current?.click()} style={{ fontSize:13 }}>
+              ⬆ Cargar formulario completado
+            </button>
+            <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={handleCargarFile} style={{ display:'none' }} />
+          </div>
+        </div>
+      </div>
 
       {/* Acciones principales */}
       <div style={{ marginTop:20, display:'flex', gap:10, flexWrap:'wrap' }}>
@@ -1244,7 +1605,7 @@ export default function App() {
   const cargarPerfil = (key) => {
     const p = perfiles[key]
     if (!p) return
-    setPerfilForm({ ...PERFIL_EMPTY, ...p })
+    setPerfilForm(normalizePerfil(p))
     setResenaVisible(false)
     showToast(`Perfil de "${p.razon}" cargado`)
   }
@@ -1277,6 +1638,12 @@ export default function App() {
       filenameBase: 'Resena-Fixus',
       razon: perfilForm.razon || 'empresa',
     })
+  }
+
+  const handleCargarFormulario = (data) => {
+    setPerfilForm(normalizePerfil(data))
+    setResenaVisible(false)
+    showToast('Formulario del cliente cargado ✓')
   }
 
   const analizar = () => {
@@ -1817,6 +2184,7 @@ export default function App() {
                 setResenaVisible={setResenaVisible}
                 onPDF={generarResenaPDF}
                 pdfLoading={pdfLoading}
+                onCargarFormulario={handleCargarFormulario}
               />
             </>
           )}
