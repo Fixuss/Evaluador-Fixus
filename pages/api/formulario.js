@@ -16,26 +16,22 @@ export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const { token, key } = req.query
-
       if (token) {
         const data = await kv.get(`fixus:form:${token}`)
         if (!data) return res.status(404).json({ error: 'Formulario no encontrado' })
         return res.status(200).json({ data })
       }
-
       if (key) {
         const activeToken = await kv.get(`fixus:form:key:${key}`)
         if (!activeToken) return res.status(200).json({ data: null })
         const data = await kv.get(`fixus:form:${activeToken}`)
         return res.status(200).json({ data: data || null })
       }
-
       return res.status(400).json({ error: 'Falta token o key' })
     }
 
     if (req.method === 'POST') {
       const { action, payload } = req.body
-
       if (action === 'create') {
         const { perfilKey, prefill, analista } = payload
         const token = makeToken()
@@ -54,7 +50,6 @@ export default async function handler(req, res) {
         if (perfilKey) await kv.set(`fixus:form:key:${perfilKey}`, token)
         return res.status(200).json({ ok: true, token })
       }
-
       if (action === 'submit') {
         const { token, respuesta } = payload
         const existing = await kv.get(`fixus:form:${token}`)
