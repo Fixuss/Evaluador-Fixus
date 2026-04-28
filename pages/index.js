@@ -1653,12 +1653,14 @@ export default function App() {
     fetch('/api/pipeline?type=perfiles').then(r => r.json()).then(d => { if (d.data) setPerfiles(d.data) })
   }, [])
 
-  // Sincroniza la razón social del evaluador al perfil cualitativo cuando el perfil está vacío
+  // Sincroniza razón social y CUIT del evaluador al perfil cualitativo cuando el perfil está vacío
   useEffect(() => {
-    if (form.razon && !perfilForm.razon) {
-      setPerfilForm(prev => ({ ...prev, razon: form.razon }))
-    }
-  }, [form.razon])
+    setPerfilForm(prev => ({
+      ...prev,
+      ...(form.razon && !prev.razon ? { razon: form.razon } : {}),
+      ...(form.cuit  && !prev.cuit  ? { cuit:  form.cuit  } : {}),
+    }))
+  }, [form.razon, form.cuit])
 
   // Busca en el pipeline una empresa cuya razón social coincida (normalizada) con la del perfil
   const pipelineMatch = useMemo(() => {
