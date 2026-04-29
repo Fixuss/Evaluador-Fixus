@@ -507,7 +507,7 @@ body {
   gap: 16px;
 }
 .pdf-capturing .pdf-logo {
-  height: 60px;
+  height: 50px;
   width: auto;
   flex-shrink: 0;
 }
