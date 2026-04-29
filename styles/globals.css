@@ -497,7 +497,7 @@ body {
   display: block;
   margin-bottom: 20px;
   padding: 18px 20px 16px;
-  background: linear-gradient(135deg, #1E3A8A 0%, #617ECA 100%);
+  background: #0e2c50;
   border-radius: 10px;
   color: #fff;
 }
@@ -507,7 +507,7 @@ body {
   gap: 16px;
 }
 .pdf-capturing .pdf-logo {
-  height: 44px;
+  height: 60px;
   width: auto;
   flex-shrink: 0;
 }

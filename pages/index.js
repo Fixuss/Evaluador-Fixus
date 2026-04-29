@@ -1534,7 +1534,7 @@ function PanelPerfil({ form, setForm, perfilesList, onLoad, onNew, onDelete, onS
           {/* Header PDF — oculto en UI normal, visible al capturar */}
           <div className="pdf-header">
             <div className="pdf-header-row">
-              <img src="/logo.svg" alt="Fixus" className="pdf-logo" />
+              <img src="/logo_white.png" alt="Fixus" className="pdf-logo" />
               <div className="pdf-header-title">
                 <div className="pdf-title">Reseña corporativa</div>
                 <div className="pdf-subtitle">Fixus — Consultora para PyMEs</div>
@@ -1545,7 +1545,6 @@ function PanelPerfil({ form, setForm, perfilesList, onLoad, onNew, onDelete, onS
               <div><strong>Razón social:</strong> {form.razon || '—'}</div>
               <div><strong>CUIT:</strong> {form.cuit || '—'}</div>
               <div><strong>Sector:</strong> {form.sector || '—'}</div>
-              <div><strong>Forma jurídica:</strong> {form.forma_juridica || '—'}</div>
               <div><strong>Ubicación:</strong> {[form.localidad, form.provincia].filter(Boolean).join(', ') || '—'}</div>
               <div><strong>Empleados:</strong> {form.empleados || '—'}</div>
             </div>
