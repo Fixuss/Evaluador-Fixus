@@ -1319,25 +1319,6 @@ function CampoPerfil({ def, form, setForm }) {
 function PanelPerfil({ form, setForm, perfilesList, onLoad, onNew, onDelete, onSave, saving, pipelineMatch, resenaVisible, setResenaVisible, onPDF, pdfLoading, usuarioActual, onToast }) {
   const resena = useMemo(() => buildResena(form, pipelineMatch), [form, pipelineMatch])
   const fechaInforme = new Date().toLocaleDateString('es-AR', { day:'2-digit', month:'long', year:'numeric' })
-  const [resenaIA, setResenaIA] = useState(null)
-  const [generandoIA, setGenerandoIA] = useState(false)
-
-  const generarResenaIA = async () => {
-    setGenerandoIA(true)
-    setResenaIA(null)
-    if (!resenaVisible) setResenaVisible(true)
-    try {
-      const res = await fetch('/api/resena', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ perfil: form, pipelineMatch }),
-      })
-      const d = await res.json()
-      if (d.resena) setResenaIA(d.resena)
-      else onToast?.('Error al generar con IA: ' + (d.error || ''))
-    } catch { onToast?.('Error de conexión al generar reseña') }
-    finally { setGenerandoIA(false) }
-  }
   const perfilKey = normalizeRazon(form.razon)
 
   // ── Token compartible ─────────────────────────────────────────────────
@@ -1543,16 +1524,7 @@ function PanelPerfil({ form, setForm, perfilesList, onLoad, onNew, onDelete, onS
           disabled={!form.razon}
           title={!form.razon ? 'Cargá al menos la Razón Social' : ''}
         >
-          {resenaVisible ? '👁 Ocultar reseña' : '📄 Ver reseña'}
-        </button>
-        <button
-          className="btn btn-primary"
-          onClick={generarResenaIA}
-          disabled={!form.razon || generandoIA}
-          title={!form.razon ? 'Cargá al menos la Razón Social' : 'Genera una reseña redactada por IA'}
-          style={{ background:'linear-gradient(135deg,#7C3AED,#4a69cc)' }}
-        >
-          {generandoIA ? <><span className="spinner" /> Redactando…</> : '✨ Redactar con IA'}
+          {resenaVisible ? '👁 Ocultar reseña' : '📄 Generar reseña'}
         </button>
       </div>
 
@@ -1587,29 +1559,14 @@ function PanelPerfil({ form, setForm, perfilesList, onLoad, onNew, onDelete, onS
             </div>
             <div className="card-body">
               <div className="memo-box">
-                {generandoIA && (
-                  <div style={{ display:'flex', alignItems:'center', gap:10, padding:'20px 0', color:'#7C3AED', fontSize:14 }}>
-                    <span className="spinner" style={{ borderTopColor:'#7C3AED' }} /> Redactando reseña con IA…
+                {resena.map((s, i) => (
+                  <div key={i} className="memo-section">
+                    <div className="memo-title">{s.titulo}</div>
+                    <div className="memo-text" style={{ whiteSpace:'pre-wrap' }}>{s.texto}</div>
                   </div>
-                )}
-                {resenaIA ? (
-                  <>
-                    <div style={{ marginBottom:12, display:'flex', alignItems:'center', gap:8 }}>
-                      <span style={{ fontSize:11, fontWeight:700, color:'#7C3AED', textTransform:'uppercase', letterSpacing:'.06em' }}>✨ Redactada por IA</span>
-                      <button onClick={() => setResenaIA(null)} style={{ fontSize:11, color:'#94a3b8', background:'none', border:'none', cursor:'pointer' }}>Volver a la versión automática</button>
-                    </div>
-                    <div className="memo-text" style={{ whiteSpace:'pre-wrap', lineHeight:1.8 }}>{resenaIA}</div>
-                  </>
-                ) : (
-                  !generandoIA && resena.map((s, i) => (
-                    <div key={i} className="memo-section">
-                      <div className="memo-title">{s.titulo}</div>
-                      <div className="memo-text" style={{ whiteSpace:'pre-wrap' }}>{s.texto}</div>
-                    </div>
-                  ))
-                )}
+                ))}
                 <div className="memo-footer">
-                  {resenaIA ? 'Reseña redactada con IA · ' : ''}Generada el {fechaInforme} · Fixus — Consultora para PyMEs · Documento de uso interno
+                  Reseña generada el {fechaInforme} · Fixus — Consultora para PyMEs · Documento de uso interno
                 </div>
               </div>
             </div>
