@@ -1152,7 +1152,16 @@ td input{border-radius:6px}
 </div>
 
 <div class="sec">
-  <div class="sec-hd"><h2>4. Narrativa del negocio</h2></div>
+  <div class="sec-hd"><h2>4. Solicitud de crédito</h2></div>
+  <div class="sec-bd"><div class="grid">
+    <div class="f"><label>Monto solicitado</label><input type="text" id="sol_monto" value="${esc(p.sol_monto)}" placeholder="ej. $5.000.000"></div>
+    <div class="f"><label>Plazo solicitado</label><input type="text" id="sol_plazo" value="${esc(p.sol_plazo)}" placeholder="ej. 24 meses"></div>
+    <div class="f s2"><label>Destino del crédito</label><input type="text" id="sol_destino" value="${esc(p.sol_destino)}" placeholder="ej. Capital de trabajo"></div>
+  </div></div>
+</div>
+
+<div class="sec">
+  <div class="sec-hd"><h2>5. Narrativa del negocio</h2></div>
   <div class="sec-bd"><div class="grid">
     <div class="f s2"><label>Historia y origen</label><textarea id="historia" rows="4" placeholder="Año de inicio, fundadores, hitos de crecimiento, cambios relevantes…">${esc(p.historia)}</textarea></div>
     <div class="f s2">
@@ -1171,7 +1180,7 @@ td input{border-radius:6px}
 </div>
 
 <div class="sec">
-  <div class="sec-hd"><h2>5. Mercado — cartera comercial</h2></div>
+  <div class="sec-hd"><h2>6. Mercado — cartera comercial</h2></div>
   <div class="sec-bd"><div class="grid">
     <div class="f s2">
       <label>Principales clientes</label>
@@ -1187,7 +1196,7 @@ td input{border-radius:6px}
 </div>
 
 <div class="sec">
-  <div class="sec-hd"><h2>6. Infraestructura y operaciones</h2></div>
+  <div class="sec-hd"><h2>7. Infraestructura y operaciones</h2></div>
   <div class="sec-bd"><div class="grid">
     <div class="f s2"><label>Instalaciones y activos productivos</label><textarea id="infraestructura" rows="3" placeholder="Planta, oficinas, sucursales, vehículos, maquinaria relevante">${esc(p.infraestructura)}</textarea></div>
     <div class="f s2"><label>Certificaciones / habilitaciones / reconocimientos</label><textarea id="certificaciones" rows="2">${esc(p.certificaciones)}</textarea></div>
@@ -1195,7 +1204,7 @@ td input{border-radius:6px}
 </div>
 
 <div class="sec">
-  <div class="sec-hd"><h2>7. Contexto estratégico</h2></div>
+  <div class="sec-hd"><h2>8. Contexto estratégico</h2></div>
   <div class="sec-bd"><div class="grid">
     <div class="f s2"><label>¿Cuáles son las principales ventajas competitivas frente a la competencia?</label><textarea id="ventajas_competitivas" rows="3" placeholder="Marca, know-how, equipo, tecnología, precio, calidad…">${esc(p.ventajas_competitivas)}</textarea></div>
     <div class="f s2"><label>¿Cuáles son los principales riesgos o desafíos que enfrenta actualmente?</label><textarea id="riesgos_principales" rows="3" placeholder="Contexto económico, competencia, capacidad operativa, regulación…">${esc(p.riesgos_principales)}</textarea></div>
@@ -1205,7 +1214,7 @@ td input{border-radius:6px}
 </div>
 
 <div class="sec">
-  <div class="sec-hd"><h2>8. Información adicional</h2></div>
+  <div class="sec-hd"><h2>9. Información adicional</h2></div>
   <div class="sec-bd"><div class="grid">
     <div class="f s2"><label>Comentarios adicionales</label><textarea id="observaciones" rows="3" placeholder="Cualquier información relevante no cubierta anteriormente…">${esc(p.observaciones)}</textarea></div>
   </div></div>
@@ -1232,6 +1241,7 @@ function exportJSON(){
     razon:v('razon'),cuit:v('cuit'),sector:v('sector'),forma_juridica:v('forma_juridica'),fecha_constitucion:v('fecha_constitucion'),
     localidad:v('localidad'),provincia:v('provincia'),domicilio:v('domicilio'),
     empleados:v('empleados'),facturacion_aprox:v('facturacion_aprox'),
+    sol_monto:v('sol_monto'),sol_plazo:v('sol_plazo'),sol_destino:v('sol_destino'),
     historia:v('historia'),negocio:v('negocio'),destino_fondos:v('destino_fondos'),
     productos:v('productos'),canales:v('canales'),infraestructura:v('infraestructura'),
     certificaciones:v('certificaciones'),ventajas_competitivas:v('ventajas_competitivas'),
@@ -1547,6 +1557,11 @@ function PanelPerfil({ form, setForm, perfilesList, onLoad, onNew, onDelete, onS
               <div><strong>Sector:</strong> {form.sector || '—'}</div>
               <div><strong>Ubicación:</strong> {[form.localidad, form.provincia].filter(Boolean).join(', ') || '—'}</div>
               <div><strong>Empleados:</strong> {form.empleados || '—'}</div>
+              {(form.sol_monto || form.sol_plazo || form.sol_destino) && <>
+                <div><strong>Monto solicitado:</strong> {form.sol_monto || '—'}</div>
+                <div><strong>Plazo:</strong> {form.sol_plazo || '—'}</div>
+                <div><strong>Destino:</strong> {form.sol_destino || '—'}</div>
+              </>}
             </div>
             <div className="pdf-divider" />
           </div>
