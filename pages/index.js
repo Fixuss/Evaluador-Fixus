@@ -7,6 +7,18 @@ import { PERFIL_EMPTY, PERFIL_SECCIONES, buildResena, normalizeRazon, normalizeP
 const fmt = (n, dec = 0) => Number(n).toLocaleString('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec })
 const fmtK = n => '$' + fmt(Math.round(n)) + 'K'
 
+function fmtCuit(val) {
+  const d = (val || '').replace(/\D/g, '')
+  if (d.length === 11) return `${d.slice(0,2)}-${d.slice(2,10)}-${d.slice(10)}`
+  return val
+}
+
+function fmtMoneda(val) {
+  const n = parseInt((val || '').replace(/\D/g, ''), 10)
+  if (isNaN(n)) return val
+  return n.toLocaleString('es-AR')
+}
+
 function Toast({ msg, onDone }) {
   useEffect(() => { const t = setTimeout(onDone, 2800); return () => clearTimeout(t) }, [])
   return <div className="toast">{msg}</div>
@@ -988,7 +1000,7 @@ function CampoAccionistas({ label, form, setForm, style }) {
               <tr key={i} style={{ borderBottom:'1px solid #e8edf8' }}>
                 <td style={{ padding:'6px 4px' }}><input type="text" value={a.nombre} onChange={e=>update(i,'nombre',e.target.value)} placeholder="Nombre o razón social" style={TBL_INPUT} /></td>
                 <td style={{ padding:'6px 4px', width:120 }}><input type="text" value={a.participacion} onChange={e=>update(i,'participacion',e.target.value)} placeholder="ej. 50%" style={TBL_INPUT} /></td>
-                <td style={{ padding:'6px 4px', width:160 }}><input type="text" value={a.cuit} onChange={e=>update(i,'cuit',e.target.value)} placeholder="XX-XXXXXXXX-X" style={TBL_INPUT} /></td>
+                <td style={{ padding:'6px 4px', width:160 }}><input type="text" value={a.cuit} onChange={e=>update(i,'cuit',e.target.value)} onBlur={e=>update(i,'cuit',fmtCuit(e.target.value))} placeholder="XX-XXXXXXXX-X" style={TBL_INPUT} /></td>
                 <td style={{ padding:'6px 4px' }}><input type="text" value={a.rol} onChange={e=>update(i,'rol',e.target.value)} placeholder="Presidente, Gerente…" style={TBL_INPUT} /></td>
                 <td style={{ padding:'6px 4px', textAlign:'center' }}>
                   {accionistas.length > 1 && (
@@ -1025,7 +1037,7 @@ function CampoTablaContactos({ label, fieldId, colPct, form, setForm, style }) {
               <tr key={i} style={{ borderBottom:'1px solid #e8edf8' }}>
                 <td style={{ padding:'6px 8px', textAlign:'center', color:'#94a3b8', fontWeight:700, fontSize:12 }}>{i+1}</td>
                 <td style={{ padding:'6px 4px' }}><input type="text" value={item.nombre} onChange={e=>update(i,'nombre',e.target.value)} placeholder="Nombre o razón social" style={TBL_INPUT} /></td>
-                <td style={{ padding:'6px 4px' }}><input type="text" value={item.cuit} onChange={e=>update(i,'cuit',e.target.value)} placeholder="XX-XXXXXXXX-X" style={TBL_INPUT} /></td>
+                <td style={{ padding:'6px 4px' }}><input type="text" value={item.cuit} onChange={e=>update(i,'cuit',e.target.value)} onBlur={e=>update(i,'cuit',fmtCuit(e.target.value))} placeholder="XX-XXXXXXXX-X" style={TBL_INPUT} /></td>
                 <td style={{ padding:'6px 4px' }}><input type="text" value={item.porcentaje} onChange={e=>update(i,'porcentaje',e.target.value)} placeholder="ej. 25%" style={TBL_INPUT} /></td>
               </tr>
             ))}
@@ -1284,6 +1296,17 @@ function CampoPerfil({ def, form, setForm }) {
             resize:'vertical', fontFamily:'inherit', lineHeight:1.5, outline:'none',
           }}
         />
+      ) : id === 'facturacion_aprox' ? (
+        <input
+          id={id} type="text" inputMode="numeric"
+          value={val} placeholder={placeholder}
+          onChange={e => {
+            const raw = e.target.value.replace(/\./g, '')
+            setForm(f => ({ ...f, [id]: raw }))
+          }}
+          onBlur={e => setForm(f => ({ ...f, [id]: fmtMoneda(e.target.value) }))}
+          onFocus={e => setForm(f => ({ ...f, [id]: (f[id] || '').replace(/\./g, '') }))}
+        />
       ) : (
         <input
           id={id} type={type} value={val} onChange={onChange} placeholder={placeholder}
@@ -1296,6 +1319,25 @@ function CampoPerfil({ def, form, setForm }) {
 function PanelPerfil({ form, setForm, perfilesList, onLoad, onNew, onDelete, onSave, saving, pipelineMatch, resenaVisible, setResenaVisible, onPDF, pdfLoading, usuarioActual, onToast }) {
   const resena = useMemo(() => buildResena(form, pipelineMatch), [form, pipelineMatch])
   const fechaInforme = new Date().toLocaleDateString('es-AR', { day:'2-digit', month:'long', year:'numeric' })
+  const [resenaIA, setResenaIA] = useState(null)
+  const [generandoIA, setGenerandoIA] = useState(false)
+
+  const generarResenaIA = async () => {
+    setGenerandoIA(true)
+    setResenaIA(null)
+    if (!resenaVisible) setResenaVisible(true)
+    try {
+      const res = await fetch('/api/resena', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ perfil: form, pipelineMatch }),
+      })
+      const d = await res.json()
+      if (d.resena) setResenaIA(d.resena)
+      else onToast?.('Error al generar con IA: ' + (d.error || ''))
+    } catch { onToast?.('Error de conexión al generar reseña') }
+    finally { setGenerandoIA(false) }
+  }
   const perfilKey = normalizeRazon(form.razon)
 
   // ── Token compartible ─────────────────────────────────────────────────
@@ -1501,7 +1543,16 @@ function PanelPerfil({ form, setForm, perfilesList, onLoad, onNew, onDelete, onS
           disabled={!form.razon}
           title={!form.razon ? 'Cargá al menos la Razón Social' : ''}
         >
-          {resenaVisible ? '👁 Ocultar reseña' : '📄 Generar reseña'}
+          {resenaVisible ? '👁 Ocultar reseña' : '📄 Ver reseña'}
+        </button>
+        <button
+          className="btn btn-primary"
+          onClick={generarResenaIA}
+          disabled={!form.razon || generandoIA}
+          title={!form.razon ? 'Cargá al menos la Razón Social' : 'Genera una reseña redactada por IA'}
+          style={{ background:'linear-gradient(135deg,#7C3AED,#4a69cc)' }}
+        >
+          {generandoIA ? <><span className="spinner" /> Redactando…</> : '✨ Redactar con IA'}
         </button>
       </div>
 
@@ -1536,14 +1587,29 @@ function PanelPerfil({ form, setForm, perfilesList, onLoad, onNew, onDelete, onS
             </div>
             <div className="card-body">
               <div className="memo-box">
-                {resena.map((s, i) => (
-                  <div key={i} className="memo-section">
-                    <div className="memo-title">{s.titulo}</div>
-                    <div className="memo-text" style={{ whiteSpace:'pre-wrap' }}>{s.texto}</div>
+                {generandoIA && (
+                  <div style={{ display:'flex', alignItems:'center', gap:10, padding:'20px 0', color:'#7C3AED', fontSize:14 }}>
+                    <span className="spinner" style={{ borderTopColor:'#7C3AED' }} /> Redactando reseña con IA…
                   </div>
-                ))}
+                )}
+                {resenaIA ? (
+                  <>
+                    <div style={{ marginBottom:12, display:'flex', alignItems:'center', gap:8 }}>
+                      <span style={{ fontSize:11, fontWeight:700, color:'#7C3AED', textTransform:'uppercase', letterSpacing:'.06em' }}>✨ Redactada por IA</span>
+                      <button onClick={() => setResenaIA(null)} style={{ fontSize:11, color:'#94a3b8', background:'none', border:'none', cursor:'pointer' }}>Volver a la versión automática</button>
+                    </div>
+                    <div className="memo-text" style={{ whiteSpace:'pre-wrap', lineHeight:1.8 }}>{resenaIA}</div>
+                  </>
+                ) : (
+                  !generandoIA && resena.map((s, i) => (
+                    <div key={i} className="memo-section">
+                      <div className="memo-title">{s.titulo}</div>
+                      <div className="memo-text" style={{ whiteSpace:'pre-wrap' }}>{s.texto}</div>
+                    </div>
+                  ))
+                )}
                 <div className="memo-footer">
-                  Reseña generada el {fechaInforme} · Fixus — Consultora para PyMEs · Documento de uso interno
+                  {resenaIA ? 'Reseña redactada con IA · ' : ''}Generada el {fechaInforme} · Fixus — Consultora para PyMEs · Documento de uso interno
                 </div>
               </div>
             </div>

@@ -25,7 +25,7 @@ function CampoAccionistas({ label, form, setForm }) {
               <tr key={i} style={{ borderBottom:'1px solid #e8edf8' }}>
                 <td style={{ padding:'6px 4px' }}><input type="text" value={a.nombre} onChange={e=>upd(i,'nombre',e.target.value)} placeholder="Nombre o razón social" style={INP} /></td>
                 <td style={{ padding:'6px 4px', width:120 }}><input type="text" value={a.participacion} onChange={e=>upd(i,'participacion',e.target.value)} placeholder="ej. 50%" style={INP} /></td>
-                <td style={{ padding:'6px 4px', width:160 }}><input type="text" value={a.cuit} onChange={e=>upd(i,'cuit',e.target.value)} placeholder="XX-XXXXXXXX-X" style={INP} /></td>
+                <td style={{ padding:'6px 4px', width:160 }}><input type="text" value={a.cuit} onChange={e=>upd(i,'cuit',e.target.value)} onBlur={e=>{const d=e.target.value.replace(/\D/g,'');if(d.length===11)upd(i,'cuit',`${d.slice(0,2)}-${d.slice(2,10)}-${d.slice(10)}`)}} placeholder="XX-XXXXXXXX-X" style={INP} /></td>
                 <td style={{ padding:'6px 4px' }}><input type="text" value={a.rol} onChange={e=>upd(i,'rol',e.target.value)} placeholder="Presidente, Gerente…" style={INP} /></td>
                 <td style={{ padding:'6px 4px', textAlign:'center' }}>
                   {accs.length > 1 && <button type="button" onClick={()=>rem(i)} style={{ background:'none',border:'none',cursor:'pointer',color:'#DC2626',fontSize:18,lineHeight:1 }}>×</button>}
@@ -59,7 +59,7 @@ function CampoTabla({ label, fieldId, colPct, form, setForm }) {
               <tr key={i} style={{ borderBottom:'1px solid #e8edf8' }}>
                 <td style={{ padding:'6px 8px', textAlign:'center', color:'#94a3b8', fontWeight:700, fontSize:12 }}>{i+1}</td>
                 <td style={{ padding:'6px 4px' }}><input type="text" value={item.nombre} onChange={e=>upd(i,'nombre',e.target.value)} placeholder="Nombre o razón social" style={INP} /></td>
-                <td style={{ padding:'6px 4px' }}><input type="text" value={item.cuit} onChange={e=>upd(i,'cuit',e.target.value)} placeholder="XX-XXXXXXXX-X" style={INP} /></td>
+                <td style={{ padding:'6px 4px' }}><input type="text" value={item.cuit} onChange={e=>upd(i,'cuit',e.target.value)} onBlur={e=>{const d=e.target.value.replace(/\D/g,'');if(d.length===11)upd(i,'cuit',`${d.slice(0,2)}-${d.slice(2,10)}-${d.slice(10)}`)}} placeholder="XX-XXXXXXXX-X" style={INP} /></td>
                 <td style={{ padding:'6px 4px' }}><input type="text" value={item.porcentaje} onChange={e=>upd(i,'porcentaje',e.target.value)} placeholder="ej. 25%" style={INP} /></td>
               </tr>
             ))}
