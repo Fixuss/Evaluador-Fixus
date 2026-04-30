@@ -1326,10 +1326,64 @@ function CampoPerfil({ def, form, setForm }) {
   )
 }
 
+function parseAISecciones(text) {
+  const blocks = text.trim().split(/\n\n+/)
+  const sections = []
+  for (const block of blocks) {
+    const match = block.match(/^\*\*(.+?)\*\*\n?([\s\S]*)$/)
+    if (match) {
+      sections.push({ titulo: match[1].trim(), texto: match[2].trim() })
+    } else if (block.trim() && sections.length > 0) {
+      sections[sections.length - 1].texto += '\n\n' + block.trim()
+    } else if (block.trim()) {
+      sections.push({ titulo: '', texto: block.trim() })
+    }
+  }
+  return sections.filter(s => s.texto)
+}
+
 function PanelPerfil({ form, setForm, perfilesList, onLoad, onNew, onDelete, onSave, saving, pipelineMatch, resenaVisible, setResenaVisible, onPDF, pdfLoading, usuarioActual, onToast }) {
   const resena = useMemo(() => buildResena(form, pipelineMatch), [form, pipelineMatch])
   const fechaInforme = new Date().toLocaleDateString('es-AR', { day:'2-digit', month:'long', year:'numeric' })
   const perfilKey = normalizeRazon(form.razon)
+
+  // ── IA: profesionalizar reseña ────────────────────────────────────────────
+  const [aiTexto, setAiTexto] = useState('')
+  const [aiResena, setAiResena] = useState(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState(null)
+
+  const profesionalizarConIA = async () => {
+    if (!resena || resena.length === 0) return
+    setAiLoading(true)
+    setAiError(null)
+    setAiTexto('')
+    setAiResena(null)
+    try {
+      const res = await fetch('/api/profesionalizar-resena', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secciones: resena, empresa: form.razon }),
+      })
+      if (!res.ok) throw new Error('Error al conectar con la IA')
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let fullText = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        fullText += decoder.decode(value, { stream: true })
+        setAiTexto(fullText)
+      }
+      setAiResena(parseAISecciones(fullText))
+    } catch (err) {
+      setAiError(err.message)
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  const displayResena = aiResena || resena
 
   // ── Token compartible ─────────────────────────────────────────────────
   const [tokenData, setTokenData] = useState(null)
@@ -1568,12 +1622,30 @@ function PanelPerfil({ form, setForm, perfilesList, onLoad, onNew, onDelete, onS
             </div>
             <div className="card-body">
               <div className="memo-box">
-                {resena.map((s, i) => (
-                  <div key={i} className="memo-section">
-                    <div className="memo-title">{s.titulo}</div>
-                    <div className="memo-text" style={{ whiteSpace:'pre-wrap' }}>{s.texto}</div>
+                {aiLoading && !aiResena ? (
+                  <div className="memo-section">
+                    <div className="memo-text" style={{ whiteSpace:'pre-wrap', color:'#6366f1', minHeight:60 }}>
+                      {aiTexto || 'Profesionalizando con IA…'}
+                    </div>
                   </div>
-                ))}
+                ) : (
+                  displayResena.map((s, i) => (
+                    <div key={i} className="memo-section">
+                      <div className="memo-title">{s.titulo}</div>
+                      <div className="memo-text" style={{ whiteSpace:'pre-wrap' }}>{s.texto}</div>
+                    </div>
+                  ))
+                )}
+                {aiResena && (
+                  <div style={{ fontSize:11, color:'#6366f1', marginTop:8, fontStyle:'italic' }}>
+                    ✨ Reseña profesionalizada con IA
+                  </div>
+                )}
+                {aiError && (
+                  <div style={{ fontSize:12, color:'#DC2626', marginTop:8 }}>
+                    Error: {aiError}
+                  </div>
+                )}
                 <div className="memo-footer">
                   Reseña generada el {fechaInforme} · Fixus — Consultora para PyMEs · Documento de uso interno
                 </div>
@@ -1581,13 +1653,28 @@ function PanelPerfil({ form, setForm, perfilesList, onLoad, onNew, onDelete, onS
             </div>
           </div>
 
-          <div className="action-bar" style={{ marginTop:16, display:'flex', gap:10, flexWrap:'wrap' }}>
+          <div className="action-bar" style={{ marginTop:16, display:'flex', gap:10, flexWrap:'wrap', alignItems:'center' }}>
             <button className="btn btn-primary" onClick={() => onPDF('digital')} disabled={pdfLoading} title="PDF continuo para lectura en pantalla">
               {pdfLoading ? <span className="spinner" /> : '📄'} Descargar PDF
             </button>
             <button className="btn btn-ghost" onClick={() => onPDF('imprimible')} disabled={pdfLoading} title="PDF paginado A4 para imprimir">
               {pdfLoading ? <span className="spinner" /> : '🖨'} PDF imprimible
             </button>
+            {aiResena ? (
+              <button className="btn btn-ghost" onClick={() => { setAiResena(null); setAiTexto('') }}>
+                ↩ Versión original
+              </button>
+            ) : (
+              <button
+                className="btn"
+                style={{ background:'#6366f1', color:'#fff', opacity: aiLoading ? 0.7 : 1 }}
+                onClick={profesionalizarConIA}
+                disabled={aiLoading || resena.length === 0}
+                title="Mejora la redacción con inteligencia artificial"
+              >
+                {aiLoading ? <><span className="spinner" /> Profesionalizando…</> : '✨ Profesionalizar con IA'}
+              </button>
+            )}
           </div>
         </div>
       )}
