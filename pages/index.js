@@ -1647,7 +1647,7 @@ function PanelPerfil({ form, setForm, perfilesList, onLoad, onNew, onDelete, onS
                   </div>
                 )}
                 <div className="memo-footer">
-                  Reseña generada el {fechaInforme} · Fixus — Consultora para PyMEs · Documento de uso interno
+                  Fixus — Consultora para PyMEs · Documento de uso interno
                 </div>
               </div>
             </div>
