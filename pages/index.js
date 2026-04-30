@@ -1552,10 +1552,11 @@ function PanelPerfil({ form, setForm, perfilesList, onLoad, onNew, onDelete, onS
             </div>
             <div className="pdf-header-meta">
               <div><strong>Razón social:</strong> {form.razon || '—'}</div>
-              <div><strong>CUIT:</strong> {form.cuit || '—'}</div>
-              <div><strong>Sector:</strong> {form.sector || '—'}</div>
               <div><strong>Ubicación:</strong> {[form.localidad, form.provincia].filter(Boolean).join(', ') || '—'}</div>
               <div><strong>Facturación:</strong> {form.facturacion_aprox || '—'}</div>
+              <div><strong>CUIT:</strong> {form.cuit || '—'}</div>
+              <div><strong>Sector:</strong> {form.sector || '—'}</div>
+              <div><strong>Antigüedad:</strong> {form.fecha_constitucion ? `${new Date().getFullYear() - new Date(form.fecha_constitucion).getFullYear()} años` : '—'}</div>
             </div>
             <div className="pdf-divider" />
           </div>
