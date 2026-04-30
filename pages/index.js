@@ -1306,7 +1306,7 @@ function CampoPerfil({ def, form, setForm }) {
             resize:'vertical', fontFamily:'inherit', lineHeight:1.5, outline:'none',
           }}
         />
-      ) : id === 'facturacion_aprox' ? (
+      ) : id === 'facturacion_aprox' || id === 'sol_monto' ? (
         <input
           id={id} type="text" inputMode="numeric"
           value={val} placeholder={placeholder}
@@ -1544,10 +1544,9 @@ function PanelPerfil({ form, setForm, perfilesList, onLoad, onNew, onDelete, onS
           {/* Header PDF — oculto en UI normal, visible al capturar */}
           <div className="pdf-header">
             <div className="pdf-header-row">
-              <img src="/logo_white.png" alt="Fixus" className="pdf-logo" />
-              <div className="pdf-header-title">
+              <img src="/logo_white.png" alt="Fixus" className="pdf-logo" style={{ height: 29 }} />
+              <div className="pdf-header-title" style={{ textAlign: 'center' }}>
                 <div className="pdf-title">Reseña corporativa</div>
-                <div className="pdf-subtitle">Fixus — Consultora para PyMEs</div>
               </div>
               <div className="pdf-header-date">{fechaInforme}</div>
             </div>
@@ -1556,12 +1555,7 @@ function PanelPerfil({ form, setForm, perfilesList, onLoad, onNew, onDelete, onS
               <div><strong>CUIT:</strong> {form.cuit || '—'}</div>
               <div><strong>Sector:</strong> {form.sector || '—'}</div>
               <div><strong>Ubicación:</strong> {[form.localidad, form.provincia].filter(Boolean).join(', ') || '—'}</div>
-              <div><strong>Empleados:</strong> {form.empleados || '—'}</div>
-              {(form.sol_monto || form.sol_plazo || form.sol_destino) && <>
-                <div><strong>Monto solicitado:</strong> {form.sol_monto || '—'}</div>
-                <div><strong>Plazo:</strong> {form.sol_plazo || '—'}</div>
-                <div><strong>Destino:</strong> {form.sol_destino || '—'}</div>
-              </>}
+              <div><strong>Facturación:</strong> {form.facturacion_aprox || '—'}</div>
             </div>
             <div className="pdf-divider" />
           </div>
