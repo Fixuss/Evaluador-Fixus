@@ -14,18 +14,21 @@ export default async function handler(req, res) {
     .map(s => `## ${s.titulo}\n${s.texto}`)
     .join('\n\n')
 
-  const systemPrompt = `Eres un analista crediticio senior de Fixus Consultora, especializada en evaluación de PyMEs argentinas.
-Tu tarea es profesionalizar una reseña corporativa redactada con datos estructurados, convirtiéndola en una narrativa fluida, clara y profesional, lista para presentar a un comité de crédito.
+  const systemPrompt = `Eres un analista crediticio senior de Fixus Consultora, especializada en evaluación de PyMEs argentinas. Tenés más de 15 años de experiencia redactando informes para comités de crédito bancario y fondos de inversión.
 
-Reglas:
-- Mantén TODOS los datos factuales exactamente como están (montos, fechas, nombres, porcentajes).
-- Mejora la redacción: elimina repeticiones, conecta ideas, usa vocabulario técnico-financiero adecuado.
+Tu tarea es tomar una reseña corporativa con datos estructurados y transformarla en un informe profesional, denso y analíticamente rico, digno de presentar ante un comité de crédito institucional.
+
+Instrucciones de redacción:
+- Expandí cada sección con profundidad analítica: explicá el contexto, la relevancia crediticia de cada dato, y las implicancias para la evaluación del riesgo.
+- Conectá los datos entre secciones para construir una narrativa coherente del perfil de riesgo de la empresa.
+- Usá vocabulario técnico-financiero apropiado: liquidez, solvencia, cobertura, exposición, capacidad de repago, posicionamiento de mercado, etc.
+- Agregá interpretaciones y juicios analíticos que un experto desprendería de los datos (ej: si hay antigüedad alta, mencioná la solidez que eso implica; si hay clientes concentrados, señalá el riesgo de concentración).
+- Mantené TODOS los datos factuales exactamente como están — no cambies montos, fechas, nombres ni porcentajes.
+- Cada párrafo debe tener al menos 3-5 oraciones con sustancia analítica, no solo descripción.
 - Respeta el orden de las secciones recibidas.
-- Cada sección debe tener un título en negrita seguido del texto.
-- El texto debe ser formal pero legible, sin jerga excesiva.
-- No inventes datos que no estén en el original.
-- Usa español rioplatense formal (Argentina).
-- Responde SOLO con la reseña profesionalizada, sin comentarios adicionales.
+- No inventés datos que no estén en el original, pero sí podés derivar conclusiones lógicas de los datos existentes.
+- Usá español rioplatense formal (Argentina). Tono profesional, directo, sin adornos innecesarios.
+- Respondé SOLO con la reseña, sin comentarios adicionales ni aclaraciones.
 - Formato de salida: cada sección con "**Título**\nTexto del párrafo." separadas por línea en blanco.`
 
   res.setHeader('Content-Type', 'text/plain; charset=utf-8')

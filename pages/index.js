@@ -1637,7 +1637,7 @@ function PanelPerfil({ form, setForm, perfilesList, onLoad, onNew, onDelete, onS
                   ))
                 )}
                 {aiResena && (
-                  <div style={{ fontSize:11, color:'#6366f1', marginTop:8, fontStyle:'italic' }}>
+                  <div className="ai-badge" style={{ fontSize:11, color:'#6366f1', marginTop:8, fontStyle:'italic' }}>
                     ✨ Reseña profesionalizada con IA
                   </div>
                 )}

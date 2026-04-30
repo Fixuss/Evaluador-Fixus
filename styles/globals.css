@@ -555,6 +555,7 @@ body {
   padding: 20px;
 }
 .pdf-capturing .action-bar { display: none !important; }
+.pdf-capturing .ai-badge { display: none !important; }
 
 /* Espaciado extra durante la captura PDF para favorecer cortes limpios entre páginas */
 .pdf-capturing .check-item { margin-bottom: 4px; }
