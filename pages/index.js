@@ -2179,7 +2179,11 @@ export default function App() {
                           {buscandoCuit ? '...' : '🔍 Buscar'}
                         </button>
                       </div>
-                      {cuitError && <div style={{ fontSize:11, color:'#ef4444', marginTop:4 }}>{cuitError}</div>}
+                      {cuitError && (
+                        <div style={{ marginTop:8, padding:'10px 12px', background:'#FEF2F2', border:'1px solid #FECACA', borderRadius:8, fontSize:13, color:'#991B1B' }}>
+                          ⚠ {cuitError}
+                        </div>
+                      )}
                     </div>
 
                     <Campo label="Razón Social" id="razon" form={form} setForm={setForm} type="text" placeholder="Se completa automáticamente" />
