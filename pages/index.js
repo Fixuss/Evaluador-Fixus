@@ -1772,7 +1772,7 @@ export default function App() {
     fetch('/api/pipeline?type=perfiles').then(r => r.json()).then(d => { if (d.data) setPerfiles(d.data) })
   }, [])
 
-  // Sincroniza razón social y CUIT del evaluador al perfil cualitativo
+  // Sincroniza campos del formulario al perfil cualitativo
   // Solo sincroniza si el perfil está vacío o es la misma empresa
   useEffect(() => {
     setPerfilForm(prev => {
@@ -1780,11 +1780,33 @@ export default function App() {
       if (!mismaEmpresa) return prev
       return {
         ...prev,
-        ...(form.razon ? { razon: form.razon } : {}),
-        ...(form.cuit  ? { cuit:  form.cuit  } : {}),
+        ...(form.razon   ? { razon:       form.razon          } : {}),
+        ...(form.cuit    ? { cuit:        form.cuit           } : {}),
+        ...(form.sector  ? { sector:      form.sector         } : {}),
+        ...(form.destino ? { sol_destino: form.destino        } : {}),
+        ...(form.fin_sol ? { sol_monto:   String(form.fin_sol)} : {}),
       }
     })
-  }, [form.razon, form.cuit])
+  }, [form.razon, form.cuit, form.sector, form.destino, form.fin_sol])
+
+  // Sincroniza datos AFIP (domicilio, localidad, provincia, fecha constitución) al perfil
+  useEffect(() => {
+    if (!afipData) return
+    setPerfilForm(prev => {
+      const mismaEmpresa = !prev.razon || normalizeRazon(prev.razon) === normalizeRazon(form.razon)
+      if (!mismaEmpresa) return prev
+      const partes = (afipData.domicilio || '').split(',').map(s => s.trim())
+      const provincia = partes.length >= 3 ? partes[partes.length - 1] : ''
+      const localidad = partes.length >= 2 ? partes[partes.length - 2] : ''
+      return {
+        ...prev,
+        ...(afipData.domicilio        ? { domicilio:         afipData.domicilio        } : {}),
+        ...(localidad                  ? { localidad                                    } : {}),
+        ...(provincia                  ? { provincia                                    } : {}),
+        ...(afipData.fechaInscripcion  ? { fecha_constitucion: afipData.fechaInscripcion.slice(0, 10) } : {}),
+      }
+    })
+  }, [afipData])
 
   // Busca en el pipeline una empresa cuya razón social coincida (normalizada) con la del perfil
   const pipelineMatch = useMemo(() => {
