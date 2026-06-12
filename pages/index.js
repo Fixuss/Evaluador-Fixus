@@ -2368,7 +2368,7 @@ export default function App() {
               <div style={{ display:'flex', gap:12, marginTop:24 }}>
                 <button className="btn btn-primary" onClick={analizar}>▶ Analizar empresa</button>
                 <button className="btn btn-ghost" onClick={cargarEjemplo}>Cargar ejemplo demo</button>
-                <button className="btn btn-ghost-danger" onClick={() => setForm(FORM_EMPTY)}>↺ Limpiar</button>
+                <button className="btn btn-ghost-danger" onClick={() => { setForm(FORM_EMPTY); setPerfilForm(PERFIL_EMPTY); setResenaVisible(false) }}>↺ Limpiar</button>
               </div>
             </>
           )}
