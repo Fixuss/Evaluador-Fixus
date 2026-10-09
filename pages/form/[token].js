@@ -5,6 +5,13 @@ import { PERFIL_SECCIONES, normalizePerfil } from '../../lib/perfil'
 
 const TH = { padding:'9px 10px', textAlign:'left', background:'#eef2ff', borderBottom:'2px solid #c9d2ee', fontSize:12, fontWeight:700, color:'#4a69cc', textTransform:'uppercase', letterSpacing:'.04em' }
 const INP = { width:'100%', padding:'9px 11px', fontSize:13, border:'1px solid #c9d2ee', borderRadius:7, background:'#fff', fontFamily:'inherit', outline:'none', color:'#1a2840' }
+const CAMPOS_MONEDA = ['facturacion_aprox', 'sol_monto']
+
+function fmtMoneda(val) {
+  const n = parseInt((val || '').replace(/\D/g, ''), 10)
+  if (isNaN(n)) return val
+  return n.toLocaleString('es-AR')
+}
 
 function CampoAccionistas({ label, form, setForm }) {
   const accs = form.accionistas || []
@@ -84,6 +91,17 @@ function Campo({ def, form, setForm }) {
       {type === 'textarea' ? (
         <textarea id={id} value={val} onChange={onChange} placeholder={placeholder} rows={rows}
           style={{ width:'100%', padding:'10px 12px', fontSize:13, border:'1px solid #c9d2ee', borderRadius:8, background:'#fff', resize:'vertical', fontFamily:'inherit', lineHeight:1.5, outline:'none' }} />
+      ) : CAMPOS_MONEDA.includes(id) ? (
+        <input
+          id={id} type="text" inputMode="numeric"
+          value={val} placeholder={placeholder}
+          onChange={e => {
+            const raw = e.target.value.replace(/\./g, '')
+            setForm(f => ({ ...f, [id]: raw }))
+          }}
+          onBlur={e => setForm(f => ({ ...f, [id]: fmtMoneda(e.target.value) }))}
+          onFocus={e => setForm(f => ({ ...f, [id]: (f[id] || '').replace(/\./g, '') }))}
+        />
       ) : (
         <input id={id} type={type} value={val} onChange={onChange} placeholder={placeholder} />
       )}
@@ -161,7 +179,6 @@ export default function FormularioCliente() {
             <img src="/logo_white.png" alt="Fixus" style={{ height:36, width:'auto', objectFit:'contain' }} />
             <div>
               <div style={{ fontSize:18, fontWeight:700 }}>Formulario de Perfil Empresarial</div>
-              <div style={{ fontSize:12, opacity:.7, marginTop:2 }}>Fixus — Consultora para PyMEs</div>
             </div>
           </div>
           {razon && (
