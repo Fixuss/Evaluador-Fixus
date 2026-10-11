@@ -10,7 +10,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",
     "@upstash/redis": "^1.34.3",
-    "fixus-afip": "github:Fixuss/fixus-shared#a09547da4d542a35bd00b3b2cd45a17f3d7f9b59",
+    "fixus-afip": "github:Fixuss/fixus-shared#5aadf3ebe89261f9c34e40f5be1233a4eb9277bf",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.2",
     "next": "14.2.29",

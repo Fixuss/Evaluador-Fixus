@@ -29,24 +29,15 @@ function Toast({ msg, onDone }) {
   return <div className="toast">{msg}</div>
 }
 
-// ── Usuarios ───────────────────────────────────────────────────────────────
-// Cambiar los PINs antes de deployar
-const USUARIOS = [
-  { id: 'facundo',  nombre: 'Facundo Vallina',      pin: '1234', iniciales: 'FV' },
-  { id: 'leonardo', nombre: 'Leonardo Evangelista', pin: '5678', iniciales: 'LE' },
-]
+// ── Acceso (Etapa 3 — login único desde el Portal) ──────────────────────────
+// Este Evaluador ya no verifica PIN propio: la sesión llega firmada desde el
+// Portal (?sesion=<token>, validado server-side en /api/sesion con
+// AUTH_SECRET) o, si ya se entró antes, desde la cookie propia que ese
+// endpoint deja. Si no hay ninguna de las dos, la única salida es volver a
+// entrar por el Portal — no hay más login local.
 
-function LoginScreen({ onLogin }) {
-  const [selId, setSelId]   = useState(null)
-  const [pin, setPin]       = useState('')
-  const [error, setError]   = useState('')
-
-  const intentar = () => {
-    const user = USUARIOS.find(u => u.id === selId)
-    if (!user) return
-    if (pin === user.pin) { onLogin(user) }
-    else { setError('PIN incorrecto'); setPin('') }
-  }
+function AccederDesdePortal() {
+  const PORTAL_URL = 'https://portal-fixus.vercel.app'
 
   return (
     <div style={{
@@ -56,45 +47,22 @@ function LoginScreen({ onLogin }) {
       <div style={{ width:'100%', maxWidth:420, padding:'0 20px' }}>
         <div style={{ textAlign:'center', marginBottom:32 }}>
           <img src="/logo_dark.png" alt="Fixus" style={{ height:44, marginBottom:16 }} />
-          <div style={{ fontSize:15, color:'#4a5568', fontWeight:500 }}>Identificate para continuar</div>
+          <div style={{ fontSize:15, color:'#4a5568', fontWeight:500 }}>Información cualitativa</div>
         </div>
-        <div style={{ background:'#fff', borderRadius:16, boxShadow:'0 2px 4px rgba(14,44,80,.06), 0 6px 18px rgba(14,44,80,.10), 0 20px 44px rgba(14,44,80,.13)', overflow:'hidden' }}>
-          <div style={{ display:'flex' }}>
-            {USUARIOS.map(u => (
-              <button key={u.id} onClick={() => { setSelId(u.id); setPin(''); setError('') }} style={{
-                flex:1, padding:'20px 16px', border:'none', cursor:'pointer',
-                background: selId === u.id ? '#0e2c50' : '#f8fafc',
-                borderBottom: selId === u.id ? 'none' : '1px solid #e2e8f0',
-                transition:'background .15s',
-              }}>
-                <div style={{ width:44, height:44, borderRadius:'50%', background: selId === u.id ? 'rgba(255,255,255,.15)' : '#eef2ff', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 10px', fontSize:15, fontWeight:700, color: selId === u.id ? '#fff' : '#4a69cc' }}>{u.iniciales}</div>
-                <div style={{ fontSize:13, fontWeight:600, color: selId === u.id ? '#fff' : '#1a2840' }}>{u.nombre.split(' ')[0]}</div>
-                <div style={{ fontSize:11, color: selId === u.id ? 'rgba(255,255,255,.6)' : '#94a3b8', marginTop:2 }}>{u.nombre.split(' ').slice(1).join(' ')}</div>
-              </button>
-            ))}
+        <div style={{ background:'#fff', borderRadius:16, boxShadow:'0 2px 4px rgba(14,44,80,.06), 0 6px 18px rgba(14,44,80,.10), 0 20px 44px rgba(14,44,80,.13)', padding:'28px 28px', textAlign:'center' }}>
+          <div style={{ fontSize:13, color:'#64748b', lineHeight:1.6, marginBottom:20 }}>
+            Para entrar, iniciá sesión desde el Portal de Fixus. Desde ahí vas a poder abrir el Evaluador ya logueado.
           </div>
-          <div style={{ padding:'24px 28px' }}>
-            {selId ? (
-              <>
-                <label style={{ fontSize:11, fontWeight:600, color:'#64748b', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:8 }}>PIN de acceso</label>
-                <input
-                  type="password"
-                  value={pin}
-                  onChange={e => { setPin(e.target.value); setError('') }}
-                  onKeyDown={e => e.key === 'Enter' && intentar()}
-                  placeholder="••••"
-                  autoFocus
-                  style={{ width:'100%', padding:'10px 14px', fontSize:16, letterSpacing:4, border:`1px solid ${error ? '#dc2626' : '#e2e8f0'}`, borderRadius:8, outline:'none', fontFamily:'inherit', marginBottom:error ? 8 : 16, transition:'border-color .15s' }}
-                />
-                {error && <div style={{ fontSize:12, color:'#dc2626', marginBottom:12 }}>{error}</div>}
-                <button onClick={intentar} className="btn btn-primary" style={{ width:'100%', justifyContent:'center', padding:'11px' }}>
-                  Ingresar
-                </button>
-              </>
-            ) : (
-              <div style={{ textAlign:'center', color:'#94a3b8', fontSize:13, padding:'8px 0' }}>Seleccioná tu usuario arriba</div>
-            )}
-          </div>
+          <a
+            href={PORTAL_URL}
+            style={{
+              display:'inline-block', width:'100%', padding:'12px', fontSize:14, fontWeight:700,
+              background:'linear-gradient(135deg, #0e2c50, #4a69cc)', color:'#fff',
+              borderRadius:10, textDecoration:'none', boxSizing:'border-box',
+            }}
+          >
+            Ir al Portal
+          </a>
         </div>
         <div style={{ textAlign:'center', marginTop:20, fontSize:11, color:'#94a3b8' }}>Fixus · Uso interno</div>
       </div>
@@ -665,24 +633,36 @@ function PanelPerfil({ form, setForm, perfilesList, onLoad, onNew, onDelete, onS
 
 export default function App() {
   const [usuarioActual, setUsuarioActual] = useState(null)
+  // 'cargando' mientras se valida la sesión, 'sin-sesion' si no hay ninguna
+  // válida (?sesion= ni cookie).
+  const [estadoSesion, setEstadoSesion] = useState('cargando')
 
+  // Etapa 3 — la sesión llega firmada desde el Portal (?sesion=<token>) o,
+  // en una visita posterior, desde la cookie propia que /api/sesion dejó la
+  // vez anterior.
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('fixus_usuario')
-      if (saved) {
-        const u = JSON.parse(saved)
-        if (USUARIOS.find(x => x.id === u.id)) setUsuarioActual(u)
-      }
-    } catch {}
+    const url = new URL(window.location.href)
+    const tokenDeUrl = url.searchParams.get('sesion')
+
+    fetch(`/api/sesion${tokenDeUrl ? `?sesion=${encodeURIComponent(tokenDeUrl)}` : ''}`)
+      .then(r => r.json())
+      .then(data => {
+        if (tokenDeUrl) {
+          url.searchParams.delete('sesion')
+          window.history.replaceState({}, '', url.toString())
+        }
+        if (!data?.ok) { setEstadoSesion('sin-sesion'); return }
+        setUsuarioActual({ id: data.usuario.id, nombre: data.usuario.nombre, iniciales: data.usuario.inicial })
+        setEstadoSesion('ok')
+      })
+      .catch(() => setEstadoSesion('sin-sesion'))
   }, [])
 
-  const handleLogin = (user) => {
-    localStorage.setItem('fixus_usuario', JSON.stringify({ id: user.id, nombre: user.nombre, iniciales: user.iniciales }))
-    setUsuarioActual(user)
-  }
   const handleLogout = () => {
-    localStorage.removeItem('fixus_usuario')
-    setUsuarioActual(null)
+    fetch('/api/logout').finally(() => {
+      setUsuarioActual(null)
+      setEstadoSesion('sin-sesion')
+    })
   }
 
   const [toast, setToast] = useState(null)
@@ -886,7 +866,8 @@ export default function App() {
     }
   }
 
-  if (!usuarioActual) return <LoginScreen onLogin={handleLogin} />
+  if (estadoSesion === 'cargando') return null
+  if (estadoSesion !== 'ok' || !usuarioActual) return <AccederDesdePortal />
 
   return (
     <>
