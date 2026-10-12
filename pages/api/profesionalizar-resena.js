@@ -1,9 +1,15 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { requireSesion } from '../../lib/sesion'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
+// Etapa 7②/①1 (12-oct-2026): agregado el mismo chequeo de sesión que
+// pages/api/perfiles.js — este endpoint tampoco lo tenía (quien conociera
+// la URL podía generar texto con la API de Anthropic a costo de Fixus,
+// sin loguearse).
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
+  if (!requireSesion(req, res)) return
 
   const { secciones, empresa } = req.body
   if (!secciones || !Array.isArray(secciones)) {

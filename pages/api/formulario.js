@@ -1,4 +1,5 @@
 import { Redis } from '@upstash/redis'
+import { sesionActual } from '../../lib/sesion'
 
 const kv = new Redis({
   url: process.env.KV_REST_API_URL,
@@ -12,6 +13,15 @@ function makeToken() {
   return t
 }
 
+// Etapa 7②/①1 (12-oct-2026): a diferencia de perfiles.js/buscar-cuit.js/
+// profesionalizar-resena.js, este endpoint NO puede exigir sesión en todos
+// los casos — `GET ?token=` y `POST action:'submit'` son el flujo público
+// que usa el CLIENTE (sin login, con el link único que se le manda) para
+// completar su propio formulario. Lo que sí quedaba abierto de más eran las
+// dos acciones internas: `GET ?key=` (que la pantalla del analista usa para
+// saber si ya hay un formulario activo para ese perfil) y `POST
+// action:'create'` (generar un link nuevo) — cualquiera podía llamarlas sin
+// loguearse. Esas dos ahora exigen sesión; el flujo del cliente sigue igual.
 export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
@@ -22,6 +32,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ data })
       }
       if (key) {
+        if (!sesionActual(req)) return res.status(401).json({ error: 'Sin sesión válida' })
         const activeToken = await kv.get(`fixus:form:key:${key}`)
         if (!activeToken) return res.status(200).json({ data: null })
         const data = await kv.get(`fixus:form:${activeToken}`)
@@ -33,6 +44,7 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       const { action, payload } = req.body
       if (action === 'create') {
+        if (!sesionActual(req)) return res.status(401).json({ error: 'Sin sesión válida' })
         const { perfilKey, prefill, analista } = payload
         const token = makeToken()
         const entry = {

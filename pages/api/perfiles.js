@@ -12,8 +12,17 @@
 // que se editan y guardan de nuevo — en ese momento se "migran" solos a la
 // key por CUIT (ver payload.oldKey abajo). No hace falta correr ningún
 // script de migración aparte.
+//
+// Etapa 7②/①1 (12-oct-2026): este endpoint no exigía sesión — cualquiera
+// que conociera la URL podía leer los 36 perfiles completos (datos de
+// crédito de clientes reales) o escribir/borrar cualquiera, sin loguearse.
+// Mismo hallazgo que ya se corrigió en Cobros/Portal/Tablero en la Etapa
+// 7①; acá se encontró un poco más tarde, al revisar este archivo para la
+// limpieza de campos pre-FODA. Se agrega el mismo chequeo mínimo
+// (`requireSesion`, lib/sesion.js) a los tres métodos.
 
 import { Redis } from '@upstash/redis'
+import { requireSesion } from '../../lib/sesion'
 
 const kv = new Redis({
   url: process.env.KV_REST_API_URL,
@@ -23,6 +32,8 @@ const kv = new Redis({
 const PERFILES_KEY = 'fixus:perfiles'
 
 export default async function handler(req, res) {
+  if (!requireSesion(req, res)) return
+
   try {
     if (req.method === 'GET') {
       const data = await kv.get(PERFILES_KEY)

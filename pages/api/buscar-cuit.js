@@ -5,8 +5,14 @@
 // adapta request/response.
 
 import { consultarCuit, AfipError } from 'fixus-afip'
+import { requireSesion } from '../../lib/sesion'
 
+// Etapa 7②/①1 (12-oct-2026): agregado el mismo chequeo de sesión que
+// pages/api/perfiles.js — este endpoint tampoco lo tenía (quien conociera
+// la URL podía consultar cualquier CUIT en AFIP sin loguearse).
 export default async function handler(req, res) {
+  if (!requireSesion(req, res)) return
+
   const { cuit } = req.query
 
   const certPem = process.env.AFIP_CERT?.replace(/\\n/g, '\n')
