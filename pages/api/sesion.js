@@ -2,8 +2,9 @@
 //
 // Valida la sesión que llega desde el Portal (?sesion=<token>) o la cookie
 // propia ya seteada en una visita anterior, con el mismo AUTH_SECRET que
-// firmó el token en fixus-cobros (ver fixus-shared/auth.js). Este Evaluador
-// nunca verifica contraseñas — eso pasa una sola vez, en fixus-cobros.
+// firmó el token en fixus-cobros (ver fixus-shared/auth.js). Este Generador
+// de Reseñas (ex "Evaluador") nunca verifica contraseñas — eso pasa una sola
+// vez, en fixus-cobros.
 //
 // GET con ?sesion=<token>  -> valida el token nuevo, lo guarda como cookie
 //                              propia (httpOnly) y lo devuelve también en

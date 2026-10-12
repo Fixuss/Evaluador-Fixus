@@ -1,4 +1,4 @@
-// Etapa 3 — borra la cookie de sesión propia de este Evaluador. El Portal
+// Etapa 3 — borra la cookie de sesión propia de este Generador de Reseñas (ex "Evaluador"). El Portal
 // tiene su propia sesión separada (sessionStorage) y no se ve afectado.
 
 export default function handler(req, res) {

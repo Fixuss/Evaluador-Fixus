@@ -30,7 +30,7 @@ function Toast({ msg, onDone }) {
 }
 
 // ── Acceso (Etapa 3 — login único desde el Portal) ──────────────────────────
-// Este Evaluador ya no verifica PIN propio: la sesión llega firmada desde el
+// Este Generador de Reseñas (ex "Evaluador") ya no verifica PIN propio: la sesión llega firmada desde el
 // Portal (?sesion=<token>, validado server-side en /api/sesion con
 // AUTH_SECRET) o, si ya se entró antes, desde la cookie propia que ese
 // endpoint deja. Si no hay ninguna de las dos, la única salida es volver a
@@ -51,7 +51,7 @@ function AccederDesdePortal() {
         </div>
         <div style={{ background:'#fff', borderRadius:16, boxShadow:'0 2px 4px rgba(14,44,80,.06), 0 6px 18px rgba(14,44,80,.10), 0 20px 44px rgba(14,44,80,.13)', padding:'28px 28px', textAlign:'center' }}>
           <div style={{ fontSize:13, color:'#64748b', lineHeight:1.6, marginBottom:20 }}>
-            Para entrar, iniciá sesión desde el Portal de Fixus. Desde ahí vas a poder abrir el Evaluador ya logueado.
+            Para entrar, iniciá sesión desde el Portal de Fixus. Desde ahí vas a poder abrir el Generador de Reseñas ya logueado.
           </div>
           <a
             href={PORTAL_URL}
